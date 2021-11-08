@@ -99,7 +99,7 @@ pub mod pallet {
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             GenesisConfig {
-                origin: vec![],
+                origin: Vec::with_capacity(0),
                 official: None,
             }
         }
@@ -494,7 +494,7 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
         capacity: u32,
         do_payments: impl FnOnce(Option<&T::AccountId>) -> DispatchResult,
     ) -> DispatchResult {
-        let metadata = vec![];
+        let metadata = Vec::with_capacity(0);
         Self::_mint_subname(
             node_owner,
             metadata,

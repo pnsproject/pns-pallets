@@ -1,5 +1,3 @@
-use std::ops::Mul;
-
 pub use pallet::*;
 
 type BalanceOf<T> = <<T as Config>::Currency as frame_support::traits::Currency<
@@ -101,7 +99,7 @@ pub mod pallet {
 }
 use crate::traits::PriceOracle;
 use frame_support::pallet_prelude::Weight;
-
+use sp_std::ops::Mul;
 pub trait WeightInfo {
     fn set_price() -> Weight;
 }

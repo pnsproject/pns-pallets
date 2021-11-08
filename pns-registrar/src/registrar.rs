@@ -90,7 +90,7 @@ pub mod pallet {
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             GenesisConfig {
-                infos: vec![],
+                infos: Vec::with_capacity(0),
                 blacklist: BTreeSet::new(),
             }
         }
@@ -317,6 +317,7 @@ use frame_support::{
     traits::{Currency, Get},
 };
 use sp_runtime::traits::Zero;
+use sp_std::vec::Vec;
 pub trait WeightInfo {
     fn mint_subname() -> Weight;
     fn register() -> Weight;
