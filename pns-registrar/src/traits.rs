@@ -6,6 +6,7 @@ use sp_runtime::{
     traits::{AtLeast32BitUnsigned, MaybeSerializeDeserialize},
     DispatchResult,
 };
+use sp_std::vec::Vec;
 
 pub trait Registrar {
     type Hash;
