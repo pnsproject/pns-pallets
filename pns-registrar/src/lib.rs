@@ -1,7 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-extern crate alloc;
-
 //pub mod auction;
 pub mod nft;
 pub mod price_oracle;
