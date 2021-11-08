@@ -12,6 +12,7 @@ pub mod pallet {
     use frame_support::traits::{Currency, Get};
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
+    use sp_std::vec::Vec;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
