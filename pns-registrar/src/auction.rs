@@ -51,7 +51,8 @@ type WinnerData<T> = (<T as frame_system::Config>::AccountId, BalanceOf<T>);
 
 #[frame_support::pallet]
 pub mod pallet {
-	use alloc::{collections::BTreeSet, vec::Vec};
+	use sp_std
+::{collections::BTreeSet, vec::Vec};
 
 	use super::*;
 	use crate::{
