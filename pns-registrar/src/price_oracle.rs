@@ -57,12 +57,14 @@ pub mod pallet {
             <RentPrice<T>>::put(&self.rent_prices);
         }
     }
-
+    // TODO: 使用offchain worker去自动调节价格。
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
+        /// Base praice changed
         /// `[base_prices]`
         BasePriceChanged(Vec<BalanceOf<T>>),
+        /// Rent price changed
         /// `[rent_prices]`
         RentPriceChanged(Vec<BalanceOf<T>>),
     }
@@ -75,6 +77,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// Internal root method.
         #[pallet::weight(T::WeightInfo::set_price())]
         pub fn set_base_price(origin: OriginFor<T>, prices: Vec<BalanceOf<T>>) -> DispatchResult {
             ensure_root(origin)?;
@@ -85,6 +88,7 @@ pub mod pallet {
 
             Ok(())
         }
+        /// Internal root method.
         #[pallet::weight(T::WeightInfo::set_price())]
         pub fn set_rent_price(origin: OriginFor<T>, prices: Vec<BalanceOf<T>>) -> DispatchResult {
             ensure_root(origin)?;

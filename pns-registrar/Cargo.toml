@@ -45,6 +45,12 @@ git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-11'
 version = '4.0.0-dev'
 
+[dependencies.sp-api]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-11'
+version = '4.0.0-dev'
+
 
 [dependencies.codec]
 default-features = false
@@ -90,6 +96,7 @@ std = [
     'sp-io/std',
     'sp-runtime/std',
     'sp-std/std',
+    'sp-api/std',
     'scale-info/std',
     'serde/std',
 ]

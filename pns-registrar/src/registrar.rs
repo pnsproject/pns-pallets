@@ -110,50 +110,55 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
+        /// When a domain name is successfully registered, this moment will be logged.
         /// `[name,node,owner,expire]`
         NameRegistered(Vec<u8>, T::Hash, T::AccountId, T::BlockNumber),
         // TODO: Implement blocknumber to duration conversion rpc
         // to frontend call
+        /// When a domain name is successfully renewed, this moment will be logged.
         /// `[name,node,T::BlockNumber]`
         NameRenewed(Vec<u8>, T::Hash, T::BlockNumber),
+        /// When a sub-domain name is successfully registered, this moment will be logged.
         /// `[label,subnode,owner,node]`
         SubnameRegistered(Vec<u8>, T::Hash, T::AccountId, T::Hash),
     }
 
     #[pallet::error]
     pub enum Error<T> {
-        /// Burn failed.
-        BurnFailed,
-        /// Mint failed.
-        MintFailed,
-        /// Not enough permissions to call functions.
-        NotEnoughPermissions,
-        /// Node not living.
-        NotLiving,
         /// You are not in possession of the term.
         NotOwned,
         /// The node is still occupied and cannot be registered.
         Occupied,
-        /// Authorised failed
-        AuthorisedFailed,
-        /// 用于计数的时间溢出了
+        /// The time used to calculate the expire overflowed.
         TimeOverflow,
+        /// You are reclaiming a subdomain or the domain you want to process does not exist.
         NotExist,
+        /// This domain name is temporarily frozen, if you are the authority of the
+        /// country (region) or organization, you can contact the official to get
+        /// this domain name for you.
         Frozen,
-        NotRoot,
-        UnRegisterable,
-        UnRenewable,
-        DomainBuildFailed,
-        GetNodeFailed,
+        /// The label you entered is not parsed properly, maybe there are illegal characters in your label.
         ParseLabelFailed,
+        /// The length of the label you entered does not correspond to the requirement.
+        ///
+        /// The length of the label is calculated according to bytes.
         LabelInvalid,
-        NotRenew,
+        /// The domain name has exceeded its trial period, please renew or re-register.
         NotUseable,
+        /// The domain name has exceeded the renewal period, please re-register.
         NotRenewable,
+        /// You want to register in less time than the minimum time we set.
         RegistryDurationInvalid,
     }
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// Register a domain name.
+        ///
+        /// Note: The domain name must conform to the rules,
+        /// while the interface is only responsible for
+        /// registering domain names greater than 10 in length.
+        ///
+        /// Ensure: The name must be unoccupied.
         #[pallet::weight(T::WeightInfo::register())]
         #[frame_support::transactional]
         pub fn register(
@@ -191,6 +196,10 @@ pub mod pallet {
             let base_node = T::BaseNode::get();
             let label_node = label.encode_with_node(base_node);
 
+            let list = BlackList::<T>::get();
+
+            ensure!(!list.contains(&label_node), Error::<T>::Frozen);
+
             T::Registry::mint_subname(
                 &official,
                 base_node,
@@ -200,18 +209,24 @@ pub mod pallet {
                 |maybe_pre_owner| -> DispatchResult {
                     let register_fee = T::PriceOracle::register_fee(label_len);
                     let deposit = register_fee / BalanceOf::<T>::from(2_u32);
-                    let target_value = price + register_fee;
-                    T::Currency::reserve(&caller, deposit)?;
+                    let target_value = price + register_fee + deposit;
                     T::Currency::transfer(
                         &caller,
                         &official,
                         target_value,
                         ExistenceRequirement::KeepAlive,
                     )?;
+                    T::Currency::reserve(&official, deposit)?;
                     RegistrarInfos::<T>::mutate(label_node, |info| -> DispatchResult {
                         if let Some(info) = info.as_mut() {
                             if let Some(pre_owner) = maybe_pre_owner {
-                                T::Currency::unreserve(pre_owner, info.deposit);
+                                T::Currency::unreserve(&official, info.deposit);
+                                T::Currency::transfer(
+                                    &official,
+                                    &pre_owner,
+                                    info.deposit,
+                                    ExistenceRequirement::KeepAlive,
+                                )?;
                             }
                             info.deposit = deposit;
                             info.register_fee = register_fee;
@@ -234,6 +249,13 @@ pub mod pallet {
 
             Ok(())
         }
+        /// Renew a domain name.
+        ///
+        /// Note: There is no fixed relationship between the caller and the domain,
+        ///  so the front-end needs to remind the user of the relationship between
+        ///  the domain and that user at renewal time, as it is the caller's responsibility to pay.
+        ///
+        /// Ensure: Name is within the renewable period.
         #[pallet::weight(T::WeightInfo::renew())]
         #[frame_support::transactional]
         pub fn renew(
@@ -248,12 +270,12 @@ pub mod pallet {
             let label_node = label.encode_with_node(T::BaseNode::get());
 
             RegistrarInfos::<T>::mutate(label_node, |info| -> DispatchResult {
-                let info = info.as_mut().ok_or_else(|| Error::<T>::LabelInvalid)?;
+                let info = info.as_mut().ok_or_else(|| Error::<T>::NotExist)?;
 
                 let expire = info.expire;
                 let now = frame_system::Pallet::<T>::block_number();
                 let grace_period = T::GracePeriod::get();
-                ensure!(now <= expire + grace_period, Error::<T>::NotRenew);
+                ensure!(now <= expire + grace_period, Error::<T>::NotRenewable);
                 let target_expire = expire + grace_period + duration;
                 ensure!(target_expire > now + grace_period, Error::<T>::TimeOverflow);
                 let price = T::PriceOracle::renew_price(label_len, duration);
@@ -268,7 +290,15 @@ pub mod pallet {
                 Ok(())
             })
         }
-
+        /// Trade out your domain name, the caller can be operates.
+        ///
+        /// Note: Before you trade out your domain name,
+        /// you need to note that the deposit you made when registering
+        ///  the domain name belongs to the `owner` (or the `operators` of the `owner`)
+        ///  of the domain name only,
+        /// i.e. the deposit of the domain name traded out will have nothing to do with you.
+        ///
+        /// Ensure: The front-end should remind the user of the notes.
         #[pallet::weight(T::WeightInfo::set_owner())]
         #[frame_support::transactional]
         pub fn set_owner(
@@ -289,6 +319,13 @@ pub mod pallet {
             T::Registry::transfer(&who, &to, node)?;
             Ok(())
         }
+        /// Create a subdomain.
+        ///
+        /// Note: The total number of subdomains you can create is certain,
+        /// and the subdomains created by your subdomains will take up a
+        /// quota of your total subdomains.
+        ///
+        /// Ensure: The subdomain capacity is sufficient for use.
         #[pallet::weight(T::WeightInfo::mint_subname())]
         pub fn mint_subname(
             origin: OriginFor<T>,
@@ -308,6 +345,37 @@ pub mod pallet {
 
             Ok(())
         }
+        /// Give your domain name to the official reclaimed and return it to you for a deposit.
+        ///
+        /// Note: The return deposit is refunded to the caller's account.
+        ///
+        /// Ensure: Caller has enough permissions and also enough deposit for the given domain.
+        #[pallet::weight(T::WeightInfo::reclaimed())]
+        #[frame_support::transactional]
+        pub fn reclaimed(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
+            let caller = ensure_signed(origin)?;
+            ensure!(
+                RegistrarInfos::<T>::contains_key(node),
+                Error::<T>::NotExist
+            );
+            T::Registry::reclaimed(&caller, node)?;
+            RegistrarInfos::<T>::mutate(node, |info| -> DispatchResult {
+                if let Some(info) = info {
+                    let official = T::Registry::get_official_account();
+                    T::Currency::unreserve(&official, info.deposit);
+                    T::Currency::transfer(
+                        &official,
+                        &caller,
+                        info.deposit,
+                        ExistenceRequirement::KeepAlive,
+                    )?;
+                    info.deposit = Zero::zero();
+                }
+                Ok(())
+            })?;
+
+            Ok(())
+        }
     }
 }
 
@@ -323,6 +391,7 @@ pub trait WeightInfo {
     fn register() -> Weight;
     fn renew() -> Weight;
     fn set_owner() -> Weight;
+    fn reclaimed() -> Weight;
 }
 
 impl<T: Config> crate::traits::Registrar for Pallet<T> {

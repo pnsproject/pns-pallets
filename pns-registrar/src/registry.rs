@@ -10,7 +10,7 @@ pub mod pallet {
     use frame_system::{ensure_signed, pallet_prelude::*};
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
-    use sp_runtime::traits::Zero;
+    use sp_runtime::traits::{StaticLookup, Zero};
 
     #[pallet::config]
     pub trait Config:
@@ -129,12 +129,16 @@ pub mod pallet {
         /// Logged when an operator is added or removed.
         /// `[owner,operator,approved]`
         ApprovalForAll(T::AccountId, T::AccountId, bool),
+        /// Logged when a node is traded.
         /// `[from,to,class_id,token_id]`
         Transferred(T::AccountId, T::AccountId, T::ClassId, T::TokenId),
+        /// Logged when a node is minted.
         /// `[class_id,token_id,node,owner]`
         TokenMinted(T::ClassId, T::TokenId, T::Hash, T::AccountId),
+        /// Logged when a node is burned.
         /// `[class_id,token_id,node,owner,caller]`
         TokenBurned(T::ClassId, T::TokenId, T::Hash, T::AccountId, T::AccountId),
+        ///  Logged when a node is reclaimed.
         /// `[node,owner]`
         Reclaimed(T::Hash, T::AccountId),
     }
@@ -145,21 +149,21 @@ pub mod pallet {
         NoPermission,
         /// Not exist
         NotExist,
-        /// Node is already existed.
-        NodeExisted,
+        /// Capacity is not enough to add new child nodes.
         CapacityNotEnough,
+        /// If you want to `burn` your domain name, you first need to make
+        /// sure there are no subdomains. If you just want to get your deposit
+        /// back, you can consider using `reclaim`.
+        ///
+        /// Note: Using `reclaim` means that you are trading your domain name
+        ///  to the official, who will refund your deposit.
         SubnodeNotClear,
-        Filtered,
-        BurnFailed,
+        /// You may be burning a root node or an unknown node?
         BanBurnBaseNode,
     }
 
     // helper
     impl<T: Config> Pallet<T> {
-        /// 检查权限，只有域名的所有者,或者域名所有者的操作者才能继续后续操作
-        /// 其中域名的初始所有者职能操作未分配的域名
-        /// 已分配的域名在过期后会被回收
-        /// 即被分配的域名只能在被回收之后才能被初始所有者操作
         pub(crate) fn authorised(caller: &T::AccountId, node: T::Hash) -> DispatchResult {
             let owner = &nft::Pallet::<T>::tokens(T::ClassId::zero(), node)
                 .ok_or_else(|| Error::<T>::NotExist)?
@@ -173,9 +177,7 @@ pub mod pallet {
             Ok(())
         }
     }
-    // 需要验证权限之后才能调用的方法
     impl<T: Config> Pallet<T> {
-        // 调用前需要清除注册中心的数据
         pub(crate) fn _burn(caller: T::AccountId, token: T::TokenId) -> DispatchResult {
             let class_id = T::ClassId::zero();
             if let Some(token_info) = nft::Pallet::<T>::tokens(class_id, token) {
@@ -215,15 +217,7 @@ pub mod pallet {
                 Err(Error::<T>::NotExist.into())
             }
         }
-        // 在创世区块里需要做初始化
-        // 0是拍卖类域名
-        // 1是兑换码类域名
-        // 2是正常注册类域名
-        // 3是子域名，子域名比较特殊，到期时间与其根域名挂钩
-        // 不过目前全部按照0来处理即可
-        fn _create_collections(metadata: Vec<u8>) -> Result<T::ClassId, DispatchError> {
-            nft::Pallet::<T>::create_class(&Official::<T>::get(), metadata, ())
-        }
+
         #[frame_support::require_transactional]
         pub(crate) fn _mint_subname(
             owner: &T::AccountId,
@@ -324,8 +318,39 @@ pub mod pallet {
                 }
             })
         }
+        #[frame_support::require_transactional]
+        pub fn do_reclaimed(caller: &T::AccountId, token: T::TokenId) -> DispatchResult {
+            let class_id = T::ClassId::zero();
+            let token_info =
+                nft::Pallet::<T>::tokens(class_id, token).ok_or_else(|| Error::<T>::NotExist)?;
 
-        // 外部调用时确保from就是caller
+            let owner = token_info.owner;
+
+            ensure!(
+                &owner == caller || Operators::<T>::contains_key(&owner, &caller),
+                Error::<T>::NoPermission
+            );
+
+            if let Some(origin) = Origin::<T>::get(token) {
+                match origin {
+                    DomainTracing::OriginAndParent(origin, _) | DomainTracing::Origin(origin) => {
+                        T::Registrar::check_expires_renewable(origin)?;
+                    }
+                    DomainTracing::Root => {
+                        T::Registrar::check_expires_renewable(token)?;
+                    }
+                }
+            } else {
+                return Err(Error::<T>::NotExist.into());
+            }
+
+            nft::Pallet::<T>::transfer(&owner, &Official::<T>::get(), (class_id, token))?;
+
+            Self::deposit_event(Event::<T>::Reclaimed(token, owner));
+
+            Ok(())
+        }
+        /// Ensure `from` is a caller.
         #[frame_support::require_transactional]
         pub fn do_transfer(
             from: &T::AccountId,
@@ -406,16 +431,21 @@ pub mod pallet {
     }
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// Sharing your account permissions with others is a discreet operation,
+        /// and when methods such as `reclaim` are called, the deposit is returned to the caller.
         #[pallet::weight(T::WeightInfo::set_approval_for_all())]
         pub fn set_approval_for_all(
             origin: OriginFor<T>,
-            operator: T::AccountId,
+            operator: <T::Lookup as StaticLookup>::Source,
             approved: bool,
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
+            let operator = T::Lookup::lookup(operator)?;
+
             Self::do_set_approval_for_all(caller, operator, approved);
             Ok(())
         }
+        /// Set the resolver address.
         #[pallet::weight(T::WeightInfo::set_resolver())]
         pub fn set_resolver(
             origin: OriginFor<T>,
@@ -427,7 +457,13 @@ pub mod pallet {
             Resolver::<T>::mutate(node, |rs| *rs = resolver);
             Ok(())
         }
-
+        /// Burn your node.
+        ///
+        /// Note: Using this does not refund your deposit,
+        /// your deposit will be refunded to you
+        /// when the domain is registered by another user.
+        ///
+        /// Ensure: The number of subdomains for this domain must be zero.
         #[pallet::weight(T::WeightInfo::destroy())]
         pub fn destroy(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
             let caller = ensure_signed(origin)?;
@@ -514,5 +550,9 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
     #[frame_support::require_transactional]
     fn transfer(from: &Self::AccountId, to: &Self::AccountId, node: Self::Hash) -> DispatchResult {
         Self::do_transfer(from, to, node)
+    }
+    #[frame_support::require_transactional]
+    fn reclaimed(caller: &Self::AccountId, node: Self::Hash) -> sp_runtime::DispatchResult {
+        Self::do_reclaimed(caller, node)
     }
 }
