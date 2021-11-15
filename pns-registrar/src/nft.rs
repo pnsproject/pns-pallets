@@ -210,6 +210,13 @@ pub mod module {
 }
 
 impl<T: Config> Pallet<T> {
+    /// To get token from owner and class
+    pub fn token_form_prefix(
+        owner: T::AccountId,
+        class: T::ClassId,
+    ) -> sp_std::vec::Vec<T::TokenId> {
+        TokensByOwner::<T>::iter_key_prefix((owner, class)).collect()
+    }
     /// Create NFT(non fungible token) class
     pub fn create_class(
         owner: &T::AccountId,

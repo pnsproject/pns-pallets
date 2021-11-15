@@ -72,30 +72,45 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
+        /// When the redemption code is used, it will be logged.
         /// [`code`,`node`,`to`]
         RedeemCodeUsed(Vec<u8>, T::Hash, T::AccountId),
     }
 
     #[pallet::error]
     pub enum Error<T> {
-        /// Error names should be descriptive.
-        NoneValue,
-        /// Errors should have helpful documentation associated with them.
-        StorageOverflow,
-        RangeNonVaild,
+        /// The `start` you entered is greater than or equal to `end`, which is an invalid range.
+        RangeInvaild,
+        /// The label you entered is not parsed properly, maybe there are illegal characters in your label.
         ParseLabelFailed,
+        /// This is an internal error.
+        ///
+        /// The input code signature failed to be parsed,
+        /// maybe you should try calling this transaction again.
         InputCodeParseFailed,
+        ///This is an internal error.
+        ///
+        /// The code signer entered does not match the expected one.
+        /// Are you sure you are getting this error on the official PNS web page?
+        ///
+        /// If so, you can contact us and we will help you to solve this problem.
         InvalidSignature,
+        /// The redemption code has already been used.
         RedeemsHasBeenUsed,
+        /// The length of the domain name you entered does not match the
+        /// requirements of this redemption code.
         LabelLenInvalid,
     }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// This is a Root method which is used to create the nouce needed to redeem the code.
+        ///
+        /// Ensure: start < end
         #[pallet::weight(T::WeightInfo::mint_redeem(end.checked_sub(*start)))]
         pub fn mint_redeem(origin: OriginFor<T>, start: u32, end: u32) -> DispatchResult {
             ensure_root(origin)?;
-            ensure!(start <= end, Error::<T>::RangeNonVaild);
+            ensure!(start < end, Error::<T>::RangeInvaild);
 
             let mut nouce = start;
 
@@ -106,7 +121,16 @@ pub mod pallet {
 
             Ok(())
         }
-
+        /// This is an interface to the PNS front-end.
+        ///
+        /// Although you can also call it, but not through
+        /// the `redemption code` to call the interface.
+        ///
+        /// The PNS front-end gets the `name`,`duration`,`nouce` and `code` from
+        /// our central server through the `redemption code`,
+        /// and then calls the interface.
+        ///
+        /// Ensure: The length of name needs to be greater than 3.
         #[pallet::weight(T::WeightInfo::name_redeem())]
         pub fn name_redeem(
             origin: OriginFor<T>,
@@ -149,6 +173,16 @@ pub mod pallet {
             Ok(())
         }
 
+        /// This is an interface to the PNS front-end.
+        ///
+        /// The PNS front-end gets `duration`, `nouce` and `code`
+        /// from our central server via the redemption code,
+        /// and gets `name` from the user, then calls this interface.
+        ///
+        /// NOTE: The front-end should check if the name is legal
+        /// or occupied when it is called.
+        ///
+        /// Ensure: The length of name needs to be greater than 10.
         #[pallet::weight(T::WeightInfo::name_redeem_any())]
         pub fn name_redeem_any(
             origin: OriginFor<T>,
