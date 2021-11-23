@@ -135,9 +135,21 @@ where
         let node = sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(label.as_bytes()));
         Some((Self { node }, label_len))
     }
-    pub fn encode_with_node(&self, basenode: Hash) -> Hash {
+    pub fn encode_with_basenode(&self, basenode: Hash) -> Hash {
         use codec::Encode;
-        let encoded = &(self.node.clone(), basenode).encode();
+
+        let encoded = &(Hash::default(), basenode).encode();
+        let hash_encoded = keccak_256(encoded);
+        let encoded_again = &(hash_encoded, &self.node).encode();
+
+        sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(encoded_again))
+    }
+
+    pub fn encode_with_node(&self, node: Hash) -> Hash {
+        use codec::Encode;
+
+        let encoded = &(node, &self.node).encode();
+
         sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(encoded))
     }
 }

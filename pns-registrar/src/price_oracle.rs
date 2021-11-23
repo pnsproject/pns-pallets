@@ -34,6 +34,9 @@ pub mod pallet {
     #[pallet::storage]
     pub type RentPrice<T: Config> = StorageValue<_, Vec<BalanceOf<T>>, ValueQuery>;
 
+    #[pallet::storage]
+    pub type Price<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub base_prices: Vec<BalanceOf<T>>,
