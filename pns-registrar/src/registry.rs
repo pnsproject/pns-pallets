@@ -420,14 +420,6 @@ pub mod pallet {
                 .map(|(operator, _)| operator)
                 .collect()
         }
-
-        // 给Rpc调用
-        #[inline(always)]
-        pub fn subnode(node: T::Hash, label: T::Hash) -> T::Hash {
-            let context = sp_io::hashing::keccak_256(&codec::Encode::encode(&(node, label)));
-
-            sp_core::convert_hash::<T::Hash, [u8; 32]>(&context)
-        }
     }
     #[pallet::call]
     impl<T: Config> Pallet<T> {
