@@ -59,13 +59,13 @@ pub mod pallet {
         pub children: u32,
     }
 
-    /// node -> (origin,parent)
+    /// `name_hash` -> (`origin`,`parent`) or `origin`
     #[pallet::storage]
     pub type Origin<T: Config> = StorageMap<_, Twox64Concat, T::Hash, DomainTracing<T::Hash>>;
-
+    /// `name_hash` -> `resolver_id`
     #[pallet::storage]
     pub type Resolver<T: Config> = StorageMap<_, Twox64Concat, T::Hash, T::ResolverId, ValueQuery>;
-
+    /// `official`
     #[pallet::storage]
     pub type Official<T: Config> = StorageValue<_, T::AccountId, ValueQuery>;
 
@@ -77,7 +77,7 @@ pub mod pallet {
         Origin(Hash),
         Root,
     }
-
+    /// [`owner`,`account`] if `account` is `operater` -> ()
     #[pallet::storage]
     pub type Operators<T: Config> = StorageDoubleMap<
         _,

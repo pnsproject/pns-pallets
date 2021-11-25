@@ -70,11 +70,12 @@ pub mod pallet {
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
-    /// A map of expiry times
+    /// `name_hash` -> Info{ `expire`, `capacity`, `deposity`, `register_fee`}
     #[pallet::storage]
     pub type RegistrarInfos<T: Config> =
         StorageMap<_, Blake2_128Concat, T::Hash, RegistrarInfoOf<T>>;
 
+    /// `name_hash` if in `black_list` -> ()
     #[pallet::storage]
     pub type BlackList<T: Config> = StorageMap<_, Twox64Concat, T::Hash, (), ValueQuery>;
 
@@ -129,10 +130,9 @@ pub mod pallet {
         /// When a domain name is successfully registered, this moment will be logged.
         /// `[name,node,owner,expire]`
         NameRegistered(Vec<u8>, T::Hash, T::AccountId, T::Moment),
-        // TODO: Implement blocknumber to duration conversion rpc
         // to frontend call
         /// When a domain name is successfully renewed, this moment will be logged.
-        /// `[name,node,T::BlockNumber]`
+        /// `[name,node,duration]`
         NameRenewed(Vec<u8>, T::Hash, T::Moment),
         /// When a sub-domain name is successfully registered, this moment will be logged.
         /// `[label,subnode,owner,node]`
