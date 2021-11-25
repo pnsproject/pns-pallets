@@ -6,7 +6,11 @@ pub mod pallet {
     use crate::traits::{Available, Label, Registrar};
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
-    use sp_runtime::{traits::Verify, AnySignature};
+    use scale_info::TypeInfo;
+    use sp_runtime::{
+        traits::{AtLeast32BitUnsigned, Verify},
+        AnySignature,
+    };
     use sp_std::vec::Vec;
 
     #[pallet::config]
@@ -18,8 +22,20 @@ pub mod pallet {
         type Registrar: Registrar<
             AccountId = Self::AccountId,
             Hash = Self::Hash,
-            Duration = Self::BlockNumber,
+            Duration = Self::Moment,
         >;
+
+        type Moment: Clone
+            + Copy
+            + Decode
+            + Encode
+            + Eq
+            + PartialEq
+            + core::fmt::Debug
+            + Default
+            + TypeInfo
+            + AtLeast32BitUnsigned
+            + MaybeSerializeDeserialize;
 
         #[pallet::constant]
         type BaseNode: Get<Self::Hash>;
@@ -135,7 +151,7 @@ pub mod pallet {
         pub fn name_redeem(
             origin: OriginFor<T>,
             name: Vec<u8>,
-            duration: T::BlockNumber,
+            duration: T::Moment,
             nouce: u32,
             code: Vec<u8>,
         ) -> DispatchResult {
@@ -187,7 +203,7 @@ pub mod pallet {
         pub fn name_redeem_any(
             origin: OriginFor<T>,
             name: Vec<u8>,
-            duration: T::BlockNumber,
+            duration: T::Moment,
             nouce: u32,
             code: Vec<u8>,
         ) -> DispatchResult {

@@ -10,6 +10,8 @@ pub mod pallet {
     use frame_support::traits::{Currency, Get};
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
+    use scale_info::TypeInfo;
+    use sp_runtime::traits::AtLeast32BitUnsigned;
     use sp_std::vec::Vec;
 
     #[pallet::config]
@@ -17,6 +19,18 @@ pub mod pallet {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         type Currency: Currency<Self::AccountId>;
+
+        type Moment: Clone
+            + Copy
+            + Decode
+            + Encode
+            + Eq
+            + PartialEq
+            + core::fmt::Debug
+            + Default
+            + TypeInfo
+            + AtLeast32BitUnsigned
+            + MaybeSerializeDeserialize;
 
         #[pallet::constant]
         type MaximumLength: Get<u8>;
@@ -112,7 +126,7 @@ pub trait WeightInfo {
 }
 
 impl<T: Config> PriceOracle for Pallet<T> {
-    type Duration = T::BlockNumber;
+    type Duration = T::Moment;
 
     type Balance = BalanceOf<T>;
 
