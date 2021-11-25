@@ -165,3 +165,8 @@ impl Available for usize {
         self > 9
     }
 }
+
+pub trait IntoMoment<T> {
+    type Moment;
+    fn into_moment(&self) -> Self::Moment;
+}

@@ -10,7 +10,6 @@ pub mod pallet {
     use sp_std::vec::Vec;
 
     use crate::traits::{Label, PriceOracle, Registry};
-    use core::time::Duration;
     use frame_support::{
         pallet_prelude::*,
         traits::{Currency, ExistenceRequirement, ReservableCurrency, UnixTime},
@@ -46,9 +45,7 @@ pub mod pallet {
             + Default
             + TypeInfo
             + AtLeast32BitUnsigned
-            + MaybeSerializeDeserialize
-            + Into<Duration>
-            + From<Duration>;
+            + MaybeSerializeDeserialize;
 
         type NowProvider: UnixTime;
 
@@ -205,7 +202,7 @@ pub mod pallet {
 
             let official = T::Registry::get_official_account();
 
-            let now: T::Moment = T::NowProvider::now().into();
+            let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
 
             let expire = now + duration;
             // 防止计算结果溢出
@@ -290,7 +287,7 @@ pub mod pallet {
                 let info = info.as_mut().ok_or_else(|| Error::<T>::NotExist)?;
 
                 let expire = info.expire;
-                let now: T::Moment = T::NowProvider::now().into();
+                let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
                 let grace_period = T::GracePeriod::get();
                 ensure!(now <= expire + grace_period, Error::<T>::NotRenewable);
                 let target_expire = expire + grace_period + duration;
@@ -326,7 +323,7 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
             let to = T::Lookup::lookup(to)?;
             if let Some(info) = RegistrarInfos::<T>::get(node) {
-                let now = T::NowProvider::now().into();
+                let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
                 ensure!(
                     info.expire + T::GracePeriod::get() > now,
                     Error::<T>::NotOwned
@@ -395,7 +392,7 @@ pub mod pallet {
     }
 }
 
-use crate::traits::{Label, Registry};
+use crate::traits::{IntoMoment, Label, Registry};
 use frame_support::{
     dispatch::{DispatchResult, Weight},
     traits::{Currency, Get, UnixTime},
@@ -424,8 +421,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         label: Label<Self::Hash>,
     ) -> DispatchResult {
         let official = T::Registry::get_official_account();
-
-        let now: T::Moment = T::NowProvider::now().into();
+        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
         let expire = now + duration;
         // 防止计算结果溢出
         frame_support::ensure!(
@@ -512,7 +508,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     }
 
     fn check_expires_useable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now: T::Moment = T::NowProvider::now().into();
+        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
 
         let expire = RegistrarInfos::<T>::get(node)
             .ok_or_else(|| Error::<T>::NotExist)?
@@ -524,7 +520,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     }
 
     fn check_expires_registrable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now: T::Moment = T::NowProvider::now().into();
+        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
 
         let expire = RegistrarInfos::<T>::get(node)
             .ok_or_else(|| Error::<T>::NotExist)?
@@ -536,7 +532,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     }
 
     fn check_expires_renewable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now: T::Moment = T::NowProvider::now().into();
+        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
 
         let expire = RegistrarInfos::<T>::get(node)
             .ok_or_else(|| Error::<T>::NotExist)?
@@ -548,5 +544,15 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         );
 
         Ok(())
+    }
+}
+use sp_runtime::traits::SaturatedConversion;
+
+impl<T: Config> IntoMoment<T> for core::time::Duration {
+    type Moment = T::Moment;
+
+    fn into_moment(&self) -> Self::Moment {
+        let duration = self.as_secs();
+        SaturatedConversion::saturated_from(duration)
     }
 }
