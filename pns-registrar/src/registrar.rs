@@ -10,14 +10,16 @@ pub mod pallet {
     use sp_std::vec::Vec;
 
     use crate::traits::{Label, PriceOracle, Registry};
+    use core::time::Duration;
     use frame_support::{
         pallet_prelude::*,
-        traits::{Currency, ExistenceRequirement, ReservableCurrency},
+        traits::{Currency, ExistenceRequirement, ReservableCurrency, UnixTime},
+        Twox64Concat,
     };
     use frame_system::{ensure_signed, pallet_prelude::*};
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
-    use sp_runtime::traits::StaticLookup;
+    use sp_runtime::traits::{AtLeast32BitUnsigned, MaybeSerializeDeserialize, StaticLookup};
     use sp_std::collections::btree_set::BTreeSet;
 
     #[pallet::config]
@@ -34,8 +36,24 @@ pub mod pallet {
 
         type Currency: ReservableCurrency<Self::AccountId>;
 
+        type Moment: Clone
+            + Copy
+            + Decode
+            + Encode
+            + Eq
+            + PartialEq
+            + core::fmt::Debug
+            + Default
+            + TypeInfo
+            + AtLeast32BitUnsigned
+            + MaybeSerializeDeserialize
+            + Into<Duration>
+            + From<Duration>;
+
+        type NowProvider: UnixTime;
+
         #[pallet::constant]
-        type GracePeriod: Get<Self::BlockNumber>;
+        type GracePeriod: Get<Self::Moment>;
 
         #[pallet::constant]
         type DefaultCapacity: Get<u32>;
@@ -44,11 +62,11 @@ pub mod pallet {
         type BaseNode: Get<Self::Hash>;
 
         #[pallet::constant]
-        type MinRegistrationDuration: Get<Self::BlockNumber>;
+        type MinRegistrationDuration: Get<Self::Moment>;
 
         type WeightInfo: WeightInfo;
 
-        type PriceOracle: PriceOracle<Duration = Self::BlockNumber, Balance = BalanceOf<Self>>;
+        type PriceOracle: PriceOracle<Duration = Self::Moment, Balance = BalanceOf<Self>>;
     }
 
     #[pallet::pallet]
@@ -61,7 +79,7 @@ pub mod pallet {
         StorageMap<_, Blake2_128Concat, T::Hash, RegistrarInfoOf<T>>;
 
     #[pallet::storage]
-    pub type BlackList<T: Config> = StorageValue<_, BTreeSet<T::Hash>, ValueQuery>;
+    pub type BlackList<T: Config> = StorageMap<_, Twox64Concat, T::Hash, (), ValueQuery>;
 
     #[derive(
         Encode, Decode, PartialEq, Eq, RuntimeDebug, Clone, TypeInfo, Deserialize, Serialize,
@@ -77,8 +95,7 @@ pub mod pallet {
         pub register_fee: Balance,
     }
 
-    pub type RegistrarInfoOf<T> =
-        RegistrarInfo<<T as frame_system::Config>::BlockNumber, BalanceOf<T>>;
+    pub type RegistrarInfoOf<T> = RegistrarInfo<<T as Config>::Moment, BalanceOf<T>>;
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
@@ -103,7 +120,9 @@ pub mod pallet {
                 RegistrarInfos::<T>::insert(node, info);
             }
 
-            BlackList::<T>::put(self.blacklist.clone());
+            for node in self.blacklist.iter() {
+                BlackList::<T>::insert(node, ());
+            }
         }
     }
 
@@ -112,12 +131,12 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// When a domain name is successfully registered, this moment will be logged.
         /// `[name,node,owner,expire]`
-        NameRegistered(Vec<u8>, T::Hash, T::AccountId, T::BlockNumber),
+        NameRegistered(Vec<u8>, T::Hash, T::AccountId, T::Moment),
         // TODO: Implement blocknumber to duration conversion rpc
         // to frontend call
         /// When a domain name is successfully renewed, this moment will be logged.
         /// `[name,node,T::BlockNumber]`
-        NameRenewed(Vec<u8>, T::Hash, T::BlockNumber),
+        NameRenewed(Vec<u8>, T::Hash, T::Moment),
         /// When a sub-domain name is successfully registered, this moment will be logged.
         /// `[label,subnode,owner,node]`
         SubnameRegistered(Vec<u8>, T::Hash, T::AccountId, T::Hash),
@@ -165,7 +184,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             name: Vec<u8>,
             owner: <T::Lookup as StaticLookup>::Source,
-            duration: T::BlockNumber,
+            duration: T::Moment,
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
             let owner = T::Lookup::lookup(owner)?;
@@ -186,7 +205,8 @@ pub mod pallet {
 
             let official = T::Registry::get_official_account();
 
-            let now = frame_system::Pallet::<T>::block_number();
+            let now: T::Moment = T::NowProvider::now().into();
+
             let expire = now + duration;
             // 防止计算结果溢出
             ensure!(
@@ -196,9 +216,10 @@ pub mod pallet {
             let base_node = T::BaseNode::get();
             let label_node = label.encode_with_basenode(base_node);
 
-            let list = BlackList::<T>::get();
-
-            ensure!(!list.contains(&label_node), Error::<T>::Frozen);
+            ensure!(
+                !BlackList::<T>::contains_key(&label_node),
+                Error::<T>::Frozen
+            );
 
             T::Registry::mint_subname(
                 &official,
@@ -258,11 +279,7 @@ pub mod pallet {
         /// Ensure: Name is within the renewable period.
         #[pallet::weight(T::WeightInfo::renew())]
         #[frame_support::transactional]
-        pub fn renew(
-            origin: OriginFor<T>,
-            name: Vec<u8>,
-            duration: T::BlockNumber,
-        ) -> DispatchResult {
+        pub fn renew(origin: OriginFor<T>, name: Vec<u8>, duration: T::Moment) -> DispatchResult {
             let caller = ensure_signed(origin)?;
             let (label, label_len) =
                 Label::<T::Hash>::new(&name).ok_or_else(|| Error::<T>::ParseLabelFailed)?;
@@ -273,7 +290,7 @@ pub mod pallet {
                 let info = info.as_mut().ok_or_else(|| Error::<T>::NotExist)?;
 
                 let expire = info.expire;
-                let now = frame_system::Pallet::<T>::block_number();
+                let now: T::Moment = T::NowProvider::now().into();
                 let grace_period = T::GracePeriod::get();
                 ensure!(now <= expire + grace_period, Error::<T>::NotRenewable);
                 let target_expire = expire + grace_period + duration;
@@ -309,8 +326,7 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
             let to = T::Lookup::lookup(to)?;
             if let Some(info) = RegistrarInfos::<T>::get(node) {
-                let now = frame_system::Pallet::<T>::block_number();
-
+                let now = T::NowProvider::now().into();
                 ensure!(
                     info.expire + T::GracePeriod::get() > now,
                     Error::<T>::NotOwned
@@ -382,10 +398,11 @@ pub mod pallet {
 use crate::traits::{Label, Registry};
 use frame_support::{
     dispatch::{DispatchResult, Weight},
-    traits::{Currency, Get},
+    traits::{Currency, Get, UnixTime},
 };
 use sp_runtime::traits::Zero;
 use sp_std::vec::Vec;
+
 pub trait WeightInfo {
     fn mint_subname() -> Weight;
     fn register() -> Weight;
@@ -398,7 +415,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     type Hash = T::Hash;
     type Balance = BalanceOf<T>;
     type AccountId = T::AccountId;
-    type Duration = T::BlockNumber;
+    type Duration = T::Moment;
 
     fn for_redeem_code(
         name: Vec<u8>,
@@ -408,7 +425,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     ) -> DispatchResult {
         let official = T::Registry::get_official_account();
 
-        let now = frame_system::Pallet::<T>::block_number();
+        let now: T::Moment = T::NowProvider::now().into();
         let expire = now + duration;
         // 防止计算结果溢出
         frame_support::ensure!(
@@ -495,7 +512,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     }
 
     fn check_expires_useable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = frame_system::Pallet::<T>::block_number();
+        let now: T::Moment = T::NowProvider::now().into();
 
         let expire = RegistrarInfos::<T>::get(node)
             .ok_or_else(|| Error::<T>::NotExist)?
@@ -507,7 +524,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     }
 
     fn check_expires_registrable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = frame_system::Pallet::<T>::block_number();
+        let now: T::Moment = T::NowProvider::now().into();
 
         let expire = RegistrarInfos::<T>::get(node)
             .ok_or_else(|| Error::<T>::NotExist)?
@@ -519,7 +536,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     }
 
     fn check_expires_renewable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = frame_system::Pallet::<T>::block_number();
+        let now: T::Moment = T::NowProvider::now().into();
 
         let expire = RegistrarInfos::<T>::get(node)
             .ok_or_else(|| Error::<T>::NotExist)?

@@ -1,6 +1,7 @@
-use codec::FullCodec;
+use codec::{Encode, FullCodec};
 use core::fmt::Debug;
 use frame_support::traits::Currency;
+
 use sp_io::hashing::keccak_256;
 use sp_runtime::{
     traits::{AtLeast32BitUnsigned, MaybeSerializeDeserialize},
@@ -136,8 +137,6 @@ where
         Some((Self { node }, label_len))
     }
     pub fn encode_with_basenode(&self, basenode: Hash) -> Hash {
-        use codec::Encode;
-
         let encoded = &(Hash::default(), basenode).encode();
         let hash_encoded = keccak_256(encoded);
         let encoded_again = &(hash_encoded, &self.node).encode();
@@ -146,8 +145,6 @@ where
     }
 
     pub fn encode_with_node(&self, node: Hash) -> Hash {
-        use codec::Encode;
-
         let encoded = &(node, &self.node).encode();
 
         sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(encoded))
