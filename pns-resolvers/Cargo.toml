@@ -28,6 +28,11 @@ git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-11'
 version = '4.0.0-dev'
 
+[dependencies.sp-std]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-11'
+version = '4.0.0-dev'
 
 
 [dependencies.sp-runtime]
@@ -71,6 +76,12 @@ default-features = false
 features = ["derive"]
 
 
+[dependencies.serde]
+default-features = false
+version = '1.0.130'
+features = ["derive"]
+
+
 [features]
 default = ['std']
 runtime-benchmarks = ['frame-benchmarking']
@@ -81,5 +92,6 @@ std = [
     'sp-io/std',
     'sp-runtime/std',
     'scale-info/std',
+    'serde/std',
 ]
 try-runtime = ['frame-support/try-runtime']

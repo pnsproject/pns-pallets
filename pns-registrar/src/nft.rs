@@ -129,15 +129,15 @@ pub mod module {
         /// Failed because the Maximum amount of metadata was exceeded
         MaxMetadataExceeded,
     }
-    /// -> `class_id` 
-    /// 
-    /// Next available class ID. 
+    /// -> `class_id`
+    ///
+    /// Next available class ID.
     #[pallet::storage]
     #[pallet::getter(fn next_class_id)]
     pub type NextClassId<T: Config> = StorageValue<_, T::ClassId, ValueQuery>;
     /// [`class_id`: 0] -> `class_info`
-    /// 
-    /// Store class info. 
+    ///
+    /// Store class info.
     ///
     /// Returns `None` if class info not set or removed.
     #[pallet::storage]
@@ -145,7 +145,7 @@ pub mod module {
     pub type Classes<T: Config> = StorageMap<_, Twox64Concat, T::ClassId, ClassInfoOf<T>>;
 
     /// [`class_id`: 0,'name_hash'] -> `token_info`
-    /// 
+    ///
     /// Store token info.
     ///
     /// Returns `None` if token info not set or removed.
@@ -155,7 +155,7 @@ pub mod module {
         StorageDoubleMap<_, Twox64Concat, T::ClassId, Twox64Concat, T::TokenId, TokenInfoOf<T>>;
 
     /// [`owner`,`class_id`: 0,`name_hash`] -> ()
-    /// 
+    ///
     /// Token existence check by owner and class ID.
     #[pallet::storage]
     #[pallet::getter(fn tokens_by_owner)]

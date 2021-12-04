@@ -44,7 +44,7 @@ pub mod pallet {
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
-    
+
     /// redeem code
     #[pallet::storage]
     pub type Redeems<T> = StorageMap<_, Twox64Concat, u32, ()>;
