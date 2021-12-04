@@ -252,7 +252,7 @@ pub enum LocalMultiAddress<AccountId> {
     /// It's an account ID (pubkey).
     Id(AccountId),
     /// It's some arbitrary raw bytes.
-    Raw(Vec<u8>),
+    Raw(sp_std::vec::Vec<u8>),
     /// It's a 32 byte representation.
     Address32([u8; 32]),
     /// Its a 20 byte representation.
