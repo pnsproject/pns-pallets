@@ -76,7 +76,7 @@ features = ["derive"]
 [dependencies.serde]
 default-features = false
 version = '1.0.130'
-features = ["derive","alloc"]
+features = ["derive", "alloc"]
 
 
 [features]
