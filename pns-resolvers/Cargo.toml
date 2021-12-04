@@ -12,9 +12,6 @@ version = "0.1.0"
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
-[dev-dependencies.serde]
-version = '1.0.130'
-
 [dependencies.sp-core]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
@@ -79,7 +76,7 @@ features = ["derive"]
 [dependencies.serde]
 default-features = false
 version = '1.0.130'
-features = ["derive"]
+features = ["derive","alloc"]
 
 
 [features]
