@@ -93,5 +93,7 @@ std = [
     'sp-runtime/std',
     'scale-info/std',
     'serde/std',
+    'sp-std/std',
+    "sp-core/std",
 ]
 try-runtime = ['frame-support/try-runtime']
