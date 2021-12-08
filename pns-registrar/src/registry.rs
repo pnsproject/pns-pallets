@@ -7,7 +7,7 @@ pub mod pallet {
     use crate::{nft, traits::Registrar};
     use codec::FullCodec;
     use frame_support::{pallet_prelude::*, Blake2_128Concat};
-    use frame_system::{ensure_signed, pallet_prelude::*};
+    use frame_system::{ensure_root, ensure_signed, pallet_prelude::*};
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
     use sp_runtime::traits::{StaticLookup, Zero};
@@ -464,6 +464,13 @@ pub mod pallet {
 
             Ok(())
         }
+
+        #[pallet::weight(T::WeightInfo::set_official())]
+        pub fn set_official(origin: OriginFor<T>, official: T::AccountId) -> DispatchResult {
+            ensure_root(origin)?;
+            Official::<T>::put(official);
+            Ok(())
+        }
     }
 }
 
@@ -476,6 +483,7 @@ pub trait WeightInfo {
     fn set_approval_for_all() -> Weight;
     fn set_resolver() -> Weight;
     fn destroy() -> Weight;
+    fn set_official() -> Weight;
 }
 
 impl<T: pallet::Config> crate::traits::NFT<T::AccountId> for pallet::Pallet<T> {
