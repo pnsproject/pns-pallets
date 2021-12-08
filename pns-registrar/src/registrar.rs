@@ -290,8 +290,11 @@ pub mod pallet {
                 let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
                 let grace_period = T::GracePeriod::get();
                 ensure!(now <= expire + grace_period, Error::<T>::NotRenewable);
-                let target_expire = expire + grace_period + duration;
-                ensure!(target_expire > now + grace_period, Error::<T>::TimeOverflow);
+                let target_expire = expire + duration;
+                ensure!(
+                    target_expire + grace_period > now + grace_period,
+                    Error::<T>::TimeOverflow
+                );
                 let price = T::PriceOracle::renew_price(label_len, duration);
                 T::Currency::transfer(
                     &caller,
