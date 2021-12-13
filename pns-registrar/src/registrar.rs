@@ -19,7 +19,6 @@ pub mod pallet {
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
     use sp_runtime::traits::{AtLeast32BitUnsigned, MaybeSerializeDeserialize, StaticLookup};
-    use sp_std::collections::btree_set::BTreeSet;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -100,7 +99,7 @@ pub mod pallet {
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub infos: Vec<(T::Hash, RegistrarInfoOf<T>)>,
-        pub blacklist: BTreeSet<T::Hash>,
+        pub blacklist: sp_std::collections::btree_set::BTreeSet<T::Hash>,
     }
 
     #[cfg(feature = "std")]
@@ -108,7 +107,7 @@ pub mod pallet {
         fn default() -> Self {
             GenesisConfig {
                 infos: Vec::with_capacity(0),
-                blacklist: BTreeSet::new(),
+                blacklist: sp_std::collections::btree_set::BTreeSet::new(),
             }
         }
     }
