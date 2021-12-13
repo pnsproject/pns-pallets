@@ -9,7 +9,7 @@ pub mod pallet {
     use super::*;
     use sp_std::vec::Vec;
 
-    use crate::traits::{EnsureManager, Label, PriceOracle, Registry};
+    use crate::traits::{Label, Manager, PriceOracle, Registry};
     use frame_support::{
         pallet_prelude::*,
         traits::{Currency, ExistenceRequirement, ReservableCurrency, UnixTime},
@@ -64,7 +64,7 @@ pub mod pallet {
 
         type PriceOracle: PriceOracle<Duration = Self::Moment, Balance = BalanceOf<Self>>;
 
-        type Manager: EnsureManager<AccountId = Self::AccountId>;
+        type Manager: Manager<AccountId = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -224,7 +224,7 @@ pub mod pallet {
             let price = T::PriceOracle::renew_price(label_len, duration)
                 .ok_or_else(|| Error::<T>::ValueOverflow)?;
 
-            let official = T::Registry::get_official_account();
+            let official = T::Manager::get_official_account();
 
             let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
 
@@ -327,7 +327,7 @@ pub mod pallet {
                     .ok_or_else(|| Error::<T>::ValueOverflow)?;
                 T::Currency::transfer(
                     &caller,
-                    &T::Registry::get_official_account(),
+                    &T::Manager::get_official_account(),
                     price,
                     ExistenceRequirement::KeepAlive,
                 )?;
@@ -408,7 +408,7 @@ pub mod pallet {
             T::Registry::reclaimed(&caller, node)?;
             RegistrarInfos::<T>::mutate(node, |info| -> DispatchResult {
                 if let Some(info) = info {
-                    let official = T::Registry::get_official_account();
+                    let official = T::Manager::get_official_account();
                     T::Currency::unreserve(&official, info.deposit);
                     T::Currency::transfer(
                         &official,
@@ -426,7 +426,7 @@ pub mod pallet {
     }
 }
 
-use crate::traits::{IntoMoment, Label, Registry};
+use crate::traits::{IntoMoment, Label, Manager, Registry};
 use frame_support::{
     dispatch::{DispatchResult, Weight},
     traits::{Currency, Get, UnixTime},
@@ -456,7 +456,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         duration: Self::Duration,
         label: Label<Self::Hash>,
     ) -> DispatchResult {
-        let official = T::Registry::get_official_account();
+        let official = T::Manager::get_official_account();
         let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
         let expire = now + duration;
         // 防止计算结果溢出
@@ -531,7 +531,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         RegistrarInfos::<T>::mutate_exists(node, |info| -> Option<()> {
             if let Some(info) = info {
                 T::Currency::transfer(
-                    &T::Registry::get_official_account(),
+                    &T::Manager::get_official_account(),
                     owner,
                     info.deposit,
                     frame_support::traits::ExistenceRequirement::KeepAlive,

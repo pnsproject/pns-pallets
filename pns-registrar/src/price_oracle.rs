@@ -7,7 +7,7 @@ type BalanceOf<T> = <<T as Config>::Currency as frame_support::traits::Currency<
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::traits::{EnsureManager, ExchangeRate};
+    use crate::traits::{ExchangeRate, Manager};
     use frame_support::traits::{Currency, Get};
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
@@ -43,7 +43,7 @@ pub mod pallet {
 
         type WeightInfo: WeightInfo;
 
-        type Manager: EnsureManager<AccountId = Self::AccountId>;
+        type Manager: Manager<AccountId = Self::AccountId>;
     }
 
     #[pallet::pallet]

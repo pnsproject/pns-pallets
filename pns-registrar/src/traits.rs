@@ -36,7 +36,6 @@ pub trait Registry: NFT<Self::AccountId> {
     type AccountId;
     type Hash;
 
-    fn get_official_account() -> Self::AccountId;
     fn mint_subname(
         node_owner: &Self::AccountId,
         node: Self::Hash,
@@ -227,8 +226,10 @@ pub trait RedeemsGenerate {
     }
 }
 
-pub trait EnsureManager {
+pub trait Manager {
     type AccountId;
 
     fn ensure_manager(account: Self::AccountId) -> Result<(), frame_support::error::BadOrigin>;
+
+    fn get_official_account() -> Self::AccountId;
 }

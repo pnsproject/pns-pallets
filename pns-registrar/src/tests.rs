@@ -3,6 +3,7 @@ use codec::Encode;
 use frame_support::{assert_noop, assert_ok};
 use mock::*;
 use pns_resolvers::{AddressKind, TextKind};
+use sp_runtime::testing::TestSignature;
 use sp_runtime::MultiAddress;
 use traits::Label;
 
@@ -255,14 +256,6 @@ fn redeem_code_test() {
         let manager = 111_111;
         initial(test_account, official_account, to_account, manager);
 
-        use sp_core::ed25519::Pair;
-        use sp_core::Pair as _;
-        use traits::RedeemsGenerate;
-
-        let (pair, _seed) = Pair::generate();
-
-        redeem_code::OfficialSigner::<Test>::put(pair.public());
-
         assert_ok!(RedeemCode::mint_redeem(Origin::signed(manager), 0, 10));
 
         let nouce = 0_u32;
@@ -270,11 +263,9 @@ fn redeem_code_test() {
         let label_node = label.node;
         let duration = MinRegistrationDuration::get();
 
-        let signature = Test::generate_redeem(label_node, nouce, duration, &pair);
+        let signature = (label_node, duration, nouce).encode();
 
         println!("{:?}", signature);
-
-        let code = signature.encode();
 
         assert_noop!(
             RedeemCode::name_redeem(
@@ -282,10 +273,10 @@ fn redeem_code_test() {
                 b"cupnfish".to_vec(),
                 MinRegistrationDuration::get(),
                 0,
-                vec![1, 2, 3, 4],
+                TestSignature(1, vec![1, 2, 3, 4]),
                 poor_account
             ),
-            redeem_code::Error::<Test>::InputCodeParseFailed
+            redeem_code::Error::<Test>::InvalidSignature
         );
 
         assert_noop!(
@@ -294,7 +285,7 @@ fn redeem_code_test() {
                 b"cupnfishxxx".to_vec(),
                 MinRegistrationDuration::get(),
                 0,
-                code.clone(),
+                TestSignature(1, signature.clone()),
                 poor_account
             ),
             redeem_code::Error::<Test>::InvalidSignature
@@ -306,7 +297,7 @@ fn redeem_code_test() {
                 b"cupn---fish".to_vec(),
                 MinRegistrationDuration::get(),
                 0,
-                code.clone(),
+                TestSignature(official_account, signature.clone()),
                 poor_account
             ),
             redeem_code::Error::<Test>::ParseLabelFailed
@@ -317,7 +308,7 @@ fn redeem_code_test() {
             b"cupnfish".to_vec(),
             MinRegistrationDuration::get(),
             0,
-            code.clone(),
+            TestSignature(official_account, signature.clone()),
             poor_account
         ));
 
@@ -331,7 +322,7 @@ fn redeem_code_test() {
                 b"cupnfish".to_vec(),
                 MinRegistrationDuration::get(),
                 0,
-                code,
+                TestSignature(official_account, signature.clone()),
                 poor_account
             ),
             redeem_code::Error::<Test>::RedeemsHasBeenUsed
@@ -340,15 +331,15 @@ fn redeem_code_test() {
         let nouce = 1_u32;
         let duration = MinRegistrationDuration::get();
 
-        let signature = Test::generate_redeem_without_name(nouce, duration, &pair);
-        let code = signature.encode();
+        let signature = (duration, nouce).encode();
+
         assert_noop!(
             RedeemCode::name_redeem_any(
                 Origin::signed(test_account),
                 b"cupnfish".to_vec(),
                 MinRegistrationDuration::get(),
                 0,
-                vec![1, 2, 3, 4],
+                TestSignature(official_account, vec![1, 2, 3, 4]),
                 poor_account
             ),
             redeem_code::Error::<Test>::RedeemsHasBeenUsed
@@ -360,7 +351,7 @@ fn redeem_code_test() {
                 b"cupnfi--sh".to_vec(),
                 MinRegistrationDuration::get(),
                 1,
-                code.clone(),
+                TestSignature(official_account, signature.clone()),
                 poor_account
             ),
             redeem_code::Error::<Test>::ParseLabelFailed
@@ -372,7 +363,7 @@ fn redeem_code_test() {
                 b"cupnfish".to_vec(),
                 MinRegistrationDuration::get(),
                 1,
-                code.clone(),
+                TestSignature(official_account, signature.clone()),
                 poor_account
             ),
             redeem_code::Error::<Test>::LabelLenInvalid
@@ -391,7 +382,7 @@ fn redeem_code_test() {
                 b"cupnfishqqq".to_vec(),
                 MinRegistrationDuration::get(),
                 1,
-                code.clone(),
+                TestSignature(official_account, signature.clone()),
                 poor_account
             ),
             registrar::Error::<Test>::Occupied
@@ -402,7 +393,7 @@ fn redeem_code_test() {
             b"cupnfishxxx".to_vec(),
             MinRegistrationDuration::get(),
             1,
-            code.clone(),
+            TestSignature(official_account, signature.clone()),
             poor_account
         ));
 

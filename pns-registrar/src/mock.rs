@@ -304,11 +304,9 @@ impl crate::redeem_code::Config for Test {
 
     type Moment = Moment;
 
-    type Pair = sp_core::ed25519::Pair;
+    type Public = sp_runtime::testing::UintAuthorityId;
 
-    type Public = sp_core::ed25519::Public;
-
-    type Signature = sp_core::ed25519::Signature;
+    type Signature = sp_runtime::testing::TestSignature;
 
     type Manager = crate::registry::Pallet<Test>;
 }

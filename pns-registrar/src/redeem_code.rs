@@ -3,12 +3,12 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::traits::{Available, EnsureManager, Label, Registrar};
+    use crate::traits::{Available, Label, Manager, Registrar};
+    use codec::EncodeLike;
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
-    use sp_core::crypto::Pair;
-    use sp_runtime::traits::AtLeast32BitUnsigned;
+    use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, Verify};
     use sp_std::vec::Vec;
 
     #[pallet::config]
@@ -38,23 +38,25 @@ pub mod pallet {
         #[pallet::constant]
         type BaseNode: Get<Self::Hash>;
 
-        type Pair: Pair<Public = Self::Public, Signature = Self::Signature>;
-
-        type Public: Clone
-            + sp_core::crypto::Public
-            + core::hash::Hash
+        type Public: core::hash::Hash
             + TypeInfo
             + Decode
             + Encode
-            + codec::EncodeLike
+            + EncodeLike
             + MaybeSerializeDeserialize
+            + core::fmt::Debug
+            + IdentifyAccount<AccountId = Self::AccountId>;
+
+        type Signature: Decode
+            + Verify<Signer = Self::Public>
+            + codec::Codec
+            + EncodeLike
+            + Clone
             + Eq
-            + PartialEq
-            + core::fmt::Debug;
+            + core::fmt::Debug
+            + TypeInfo;
 
-        type Signature: AsRef<[u8]> + Decode;
-
-        type Manager: EnsureManager<AccountId = Self::AccountId>;
+        type Manager: Manager<AccountId = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -64,33 +66,23 @@ pub mod pallet {
     /// redeem code
     #[pallet::storage]
     pub type Redeems<T> = StorageMap<_, Twox64Concat, u32, ()>;
-    /// Official Public
-    #[pallet::storage]
-    pub type OfficialSigner<T: Config> = StorageValue<_, T::Public, ValueQuery>;
 
     #[pallet::genesis_config]
-    pub struct GenesisConfig<T: Config> {
-        pub official_signer: Option<T::Public>,
+    pub struct GenesisConfig {
         /// [`start`,`end`]
         pub redeems: Option<(u32, u32)>,
     }
 
     #[cfg(feature = "std")]
-    impl<T: Config> Default for GenesisConfig<T> {
+    impl Default for GenesisConfig {
         fn default() -> Self {
-            GenesisConfig {
-                official_signer: None,
-                redeems: None,
-            }
+            GenesisConfig { redeems: None }
         }
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+    impl<T: Config> GenesisBuild<T> for GenesisConfig {
         fn build(&self) {
-            if let Some(signer) = self.official_signer.as_ref() {
-                OfficialSigner::<T>::put(signer);
-            }
             if let Some((start, end)) = self.redeems {
                 let mut nouce = start;
 
@@ -107,7 +99,7 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// When the redemption code is used, it will be logged.
         /// [`code`,`node`,`to`]
-        RedeemCodeUsed(Vec<u8>, T::Hash, T::AccountId),
+        RedeemCodeUsed(T::Signature, T::Hash, T::AccountId),
     }
 
     #[pallet::error]
@@ -116,11 +108,6 @@ pub mod pallet {
         RangeInvaild,
         /// The label you entered is not parsed properly, maybe there are illegal characters in your label.
         ParseLabelFailed,
-        /// This is an internal error.
-        ///
-        /// The input code signature failed to be parsed,
-        /// maybe you should try calling this transaction again.
-        InputCodeParseFailed,
         ///This is an internal error.
         ///
         /// The code signer entered does not match the expected one.
@@ -173,7 +160,7 @@ pub mod pallet {
             name: Vec<u8>,
             duration: T::Moment,
             nouce: u32,
-            code: Vec<u8>,
+            code: T::Signature,
             owner: T::AccountId,
         ) -> DispatchResult {
             let _who = ensure_signed(origin)?;
@@ -189,15 +176,10 @@ pub mod pallet {
             let label_node = label.node;
             let data = (label_node, duration, nouce).encode();
 
-            let mut signature_input = &code[..];
-
-            let signature = T::Signature::decode(&mut signature_input)
-                .map_err(|_| Error::<T>::InputCodeParseFailed)?;
-
-            let signer = OfficialSigner::<T>::get();
+            let signer = T::Manager::get_official_account();
 
             ensure!(
-                T::Pair::verify(&signature, &data[..], &signer),
+                code.verify(&data[..], &signer),
                 Error::<T>::InvalidSignature
             );
 
@@ -229,7 +211,7 @@ pub mod pallet {
             name: Vec<u8>,
             duration: T::Moment,
             nouce: u32,
-            code: Vec<u8>,
+            code: T::Signature,
             owner: T::AccountId,
         ) -> DispatchResult {
             let _who = ensure_signed(origin)?;
@@ -246,15 +228,10 @@ pub mod pallet {
 
             let data = (duration, nouce).encode();
 
-            let mut signature_input = &code[..];
-
-            let signature = T::Signature::decode(&mut signature_input)
-                .map_err(|_| Error::<T>::InputCodeParseFailed)?;
-
-            let signer = OfficialSigner::<T>::get();
+            let signer = T::Manager::get_official_account();
 
             ensure!(
-                T::Pair::verify(&signature, &data[..], &signer),
+                code.verify(&data[..], &signer),
                 Error::<T>::InvalidSignature
             );
 

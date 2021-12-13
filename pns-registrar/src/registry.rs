@@ -476,7 +476,7 @@ pub mod pallet {
 
         #[pallet::weight(T::WeightInfo::set_official())]
         pub fn set_official(origin: OriginFor<T>, official: T::AccountId) -> DispatchResult {
-            use crate::traits::EnsureManager;
+            use crate::traits::Manager;
             if !ensure_root(origin.clone()).is_ok() {
                 let who = ensure_signed(origin)?;
 
@@ -557,10 +557,6 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
     type AccountId = T::AccountId;
     type Hash = T::Hash;
 
-    fn get_official_account() -> Self::AccountId {
-        Official::<T>::get()
-    }
-
     #[frame_support::require_transactional]
     fn mint_subname(
         node_owner: &Self::AccountId,
@@ -597,7 +593,7 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
     }
 }
 
-impl<T: Config> crate::traits::EnsureManager for pallet::Pallet<T> {
+impl<T: Config> crate::traits::Manager for pallet::Pallet<T> {
     type AccountId = T::AccountId;
 
     fn ensure_manager(account: Self::AccountId) -> Result<(), frame_support::error::BadOrigin> {
@@ -606,5 +602,9 @@ impl<T: Config> crate::traits::EnsureManager for pallet::Pallet<T> {
         } else {
             Err(frame_support::error::BadOrigin)
         }
+    }
+
+    fn get_official_account() -> Self::AccountId {
+        Official::<T>::get()
     }
 }
