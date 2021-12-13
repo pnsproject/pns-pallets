@@ -64,9 +64,10 @@ pub trait PriceOracle {
     /// * `expires`: When the name presently expires (0 if this is a new registration).
     /// * `duration`: How long the name is being registered or extended for, in seconds.
     /// return The price of this renewal or registration, in wei.
-    fn renew_price(name_len: usize, duration: Self::Duration) -> Self::Balance;
-    fn registry_price(name_len: usize, duration: Self::Duration) -> Self::Balance;
-    fn register_fee(name_len: usize) -> Self::Balance;
+    fn renew_price(name_len: usize, duration: Self::Duration) -> Option<Self::Balance>;
+    fn registry_price(name_len: usize, duration: Self::Duration) -> Option<Self::Balance>;
+    fn register_fee(name_len: usize) -> Option<Self::Balance>;
+    fn deposit_fee(name_len: usize) -> Option<Self::Balance>;
 }
 
 /// Abstraction over a non-fungible token system.
@@ -107,7 +108,7 @@ pub struct Label<Hash> {
 
 impl<Hash> Label<Hash>
 where
-    Hash: Default + AsMut<[u8]> + codec::Encode + Clone,
+    Hash: Default + AsMut<[u8]> + Encode + Clone,
 {
     pub fn new(data: &[u8]) -> Option<(Self, usize)> {
         let label = core::str::from_utf8(data)
@@ -118,13 +119,14 @@ where
             return None;
         }
         let mut flag = false;
-        for res in label.char_indices() {
+
+        for res in label.bytes().enumerate() {
             match res {
                 (i, c) if (i == 0 || i == label_len - 1) && !c.is_ascii_alphanumeric() => {
                     return None
                 }
-                (_, c) if flag && c == '-' => return None,
-                (_, c) if !flag && c == '-' => flag = true,
+                (_, c) if flag && c == b'-' => return None,
+                (_, c) if !flag && c == b'-' => flag = true,
                 (_, c) if c.is_ascii_alphanumeric() => {
                     if flag {
                         flag = true;
@@ -136,6 +138,7 @@ where
         let node = sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(label.as_bytes()));
         Some((Self { node }, label_len))
     }
+
     pub fn encode_with_basenode(&self, basenode: Hash) -> Hash {
         let encoded = &(Hash::default(), basenode).encode();
         let hash_encoded = keccak_256(encoded);
@@ -169,4 +172,63 @@ impl Available for usize {
 pub trait IntoMoment<T> {
     type Moment;
     fn into_moment(&self) -> Self::Moment;
+}
+
+pub trait ExchangeRate {
+    type Balance;
+    /// 1 USD to balance
+    fn get_exchange_rate() -> Self::Balance;
+}
+
+#[cfg(test)]
+use codec::Decode;
+#[cfg(test)]
+use sp_core::Pair;
+#[cfg(test)]
+pub trait RedeemsGenerate {
+    type Moment: Encode;
+
+    type Hash: Encode;
+
+    type Pair: Pair<Public = Self::Public, Signature = Self::Signature>;
+
+    type Public: Clone
+        + sp_core::Public
+        + core::hash::Hash
+        + Decode
+        + Encode
+        + codec::EncodeLike
+        + MaybeSerializeDeserialize
+        + Eq
+        + PartialEq
+        + core::fmt::Debug;
+
+    type Signature: AsRef<[u8]> + Decode;
+
+    fn generate_redeem(
+        label_node: Self::Hash,
+        nouce: u32,
+        duration: Self::Moment,
+        pair: &Self::Pair,
+    ) -> Self::Signature {
+        let data = (label_node, duration, nouce).encode();
+
+        pair.sign(&data)
+    }
+
+    fn generate_redeem_without_name(
+        nouce: u32,
+        duration: Self::Moment,
+        pair: &Self::Pair,
+    ) -> Self::Signature {
+        let data = (duration, nouce).encode();
+
+        pair.sign(&data)
+    }
+}
+
+pub trait EnsureManager {
+    type AccountId;
+
+    fn ensure_manager(account: Self::AccountId) -> Result<(), frame_support::error::BadOrigin>;
 }

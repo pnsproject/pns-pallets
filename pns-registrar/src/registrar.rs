@@ -9,7 +9,7 @@ pub mod pallet {
     use super::*;
     use sp_std::vec::Vec;
 
-    use crate::traits::{Label, PriceOracle, Registry};
+    use crate::traits::{EnsureManager, Label, PriceOracle, Registry};
     use frame_support::{
         pallet_prelude::*,
         traits::{Currency, ExistenceRequirement, ReservableCurrency, UnixTime},
@@ -64,6 +64,8 @@ pub mod pallet {
         type WeightInfo: WeightInfo;
 
         type PriceOracle: PriceOracle<Duration = Self::Moment, Balance = BalanceOf<Self>>;
+
+        type Manager: EnsureManager<AccountId = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -147,8 +149,11 @@ pub mod pallet {
         Occupied,
         /// The time used to calculate the expire overflowed.
         TimeOverflow,
-        /// You are reclaiming a subdomain or the domain you want to process does not exist.
-        NotExist,
+        /// The value used to calculate the fee overflowed.
+        ValueOverflow,
+        /// You are processing a subdomain or the domain which does not exist.
+        /// Or you are registering an occupied subdomain.
+        NotExistOrOccupied,
         /// This domain name is temporarily frozen, if you are the authority of the
         /// country (region) or organization, you can contact the official to get
         /// this domain name for you.
@@ -168,6 +173,25 @@ pub mod pallet {
     }
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// Add a domain from the blacklist
+        /// Only root
+        #[pallet::weight(T::WeightInfo::add_blacklist())]
+        pub fn add_blacklist(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            T::Manager::ensure_manager(who)?;
+
+            BlackList::<T>::insert(node, ());
+            Ok(())
+        }
+        /// Remove a domain from the blacklist
+        /// Only root
+        #[pallet::weight(T::WeightInfo::remove_blacklist())]
+        pub fn remove_blacklist(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            T::Manager::ensure_manager(who)?;
+            BlackList::<T>::remove(node);
+            Ok(())
+        }
         /// Register a domain name.
         ///
         /// Note: The domain name must conform to the rules,
@@ -198,7 +222,8 @@ pub mod pallet {
 
             ensure!(label_len.is_registrable(), Error::<T>::LabelInvalid);
 
-            let price = T::PriceOracle::renew_price(label_len, duration);
+            let price = T::PriceOracle::renew_price(label_len, duration)
+                .ok_or_else(|| Error::<T>::ValueOverflow)?;
 
             let official = T::Registry::get_official_account();
 
@@ -225,8 +250,10 @@ pub mod pallet {
                 owner.clone(),
                 0,
                 |maybe_pre_owner| -> DispatchResult {
-                    let register_fee = T::PriceOracle::register_fee(label_len);
-                    let deposit = register_fee / BalanceOf::<T>::from(2_u32);
+                    let register_fee = T::PriceOracle::register_fee(label_len)
+                        .ok_or_else(|| Error::<T>::ValueOverflow)?;
+                    let deposit = T::PriceOracle::deposit_fee(label_len)
+                        .ok_or_else(|| Error::<T>::ValueOverflow)?;
                     let target_value = price + register_fee + deposit;
                     T::Currency::transfer(
                         &caller,
@@ -284,7 +311,9 @@ pub mod pallet {
             let label_node = label.encode_with_basenode(T::BaseNode::get());
 
             RegistrarInfos::<T>::mutate(label_node, |info| -> DispatchResult {
-                let info = info.as_mut().ok_or_else(|| Error::<T>::NotExist)?;
+                let info = info
+                    .as_mut()
+                    .ok_or_else(|| Error::<T>::NotExistOrOccupied)?;
 
                 let expire = info.expire;
                 let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
@@ -295,7 +324,8 @@ pub mod pallet {
                     target_expire + grace_period > now + grace_period,
                     Error::<T>::TimeOverflow
                 );
-                let price = T::PriceOracle::renew_price(label_len, duration);
+                let price = T::PriceOracle::renew_price(label_len, duration)
+                    .ok_or_else(|| Error::<T>::ValueOverflow)?;
                 T::Currency::transfer(
                     &caller,
                     &T::Registry::get_official_account(),
@@ -343,6 +373,7 @@ pub mod pallet {
         ///
         /// Ensure: The subdomain capacity is sufficient for use.
         #[pallet::weight(T::WeightInfo::mint_subname())]
+        #[frame_support::transactional]
         pub fn mint_subname(
             origin: OriginFor<T>,
             node: T::Hash,
@@ -361,6 +392,7 @@ pub mod pallet {
 
             Ok(())
         }
+        // TODO: test this
         /// Give your domain name to the official reclaimed and return it to you for a deposit.
         ///
         /// Note: The return deposit is refunded to the caller's account.
@@ -372,7 +404,7 @@ pub mod pallet {
             let caller = ensure_signed(origin)?;
             ensure!(
                 RegistrarInfos::<T>::contains_key(node),
-                Error::<T>::NotExist
+                Error::<T>::NotExistOrOccupied
             );
             T::Registry::reclaimed(&caller, node)?;
             RegistrarInfos::<T>::mutate(node, |info| -> DispatchResult {
@@ -409,6 +441,8 @@ pub trait WeightInfo {
     fn renew() -> Weight;
     fn set_owner() -> Weight;
     fn reclaimed() -> Weight;
+    fn add_blacklist() -> Weight;
+    fn remove_blacklist() -> Weight;
 }
 
 impl<T: Config> crate::traits::Registrar for Pallet<T> {
@@ -514,7 +548,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
 
         let expire = RegistrarInfos::<T>::get(node)
-            .ok_or_else(|| Error::<T>::NotExist)?
+            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
             .expire;
 
         frame_support::ensure!(now < expire, Error::<T>::NotUseable);
@@ -526,10 +560,10 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
 
         let expire = RegistrarInfos::<T>::get(node)
-            .ok_or_else(|| Error::<T>::NotExist)?
+            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
             .expire;
 
-        frame_support::ensure!(now > expire + T::GracePeriod::get(), Error::<T>::NotOwned);
+        frame_support::ensure!(now > expire + T::GracePeriod::get(), Error::<T>::Occupied);
 
         Ok(())
     }
@@ -538,7 +572,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
 
         let expire = RegistrarInfos::<T>::get(node)
-            .ok_or_else(|| Error::<T>::NotExist)?
+            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
             .expire;
 
         frame_support::ensure!(

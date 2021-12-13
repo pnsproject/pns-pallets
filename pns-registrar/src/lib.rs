@@ -7,3 +7,8 @@ pub mod redeem_code;
 pub mod registrar;
 pub mod registry;
 pub mod traits;
+
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;

@@ -3,14 +3,12 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::traits::{Available, Label, Registrar};
+    use crate::traits::{Available, EnsureManager, Label, Registrar};
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
-    use sp_runtime::{
-        traits::{AtLeast32BitUnsigned, Verify},
-        AnySignature,
-    };
+    use sp_core::Pair;
+    use sp_runtime::traits::AtLeast32BitUnsigned;
     use sp_std::vec::Vec;
 
     #[pallet::config]
@@ -39,6 +37,24 @@ pub mod pallet {
 
         #[pallet::constant]
         type BaseNode: Get<Self::Hash>;
+
+        type Pair: Pair<Public = Self::Public, Signature = Self::Signature>;
+
+        type Public: Clone
+            + sp_core::Public
+            + core::hash::Hash
+            + TypeInfo
+            + Decode
+            + Encode
+            + codec::EncodeLike
+            + MaybeSerializeDeserialize
+            + Eq
+            + PartialEq
+            + core::fmt::Debug;
+
+        type Signature: AsRef<[u8]> + Decode;
+
+        type Manager: EnsureManager<AccountId = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -50,17 +66,17 @@ pub mod pallet {
     pub type Redeems<T> = StorageMap<_, Twox64Concat, u32, ()>;
     /// Official Public
     #[pallet::storage]
-    pub type OfficialSigner<T: Config> = StorageValue<_, sp_core::sr25519::Public, ValueQuery>;
+    pub type OfficialSigner<T: Config> = StorageValue<_, T::Public, ValueQuery>;
 
     #[pallet::genesis_config]
-    pub struct GenesisConfig {
-        pub official_signer: Option<sp_core::sr25519::Public>,
+    pub struct GenesisConfig<T: Config> {
+        pub official_signer: Option<T::Public>,
         /// [`start`,`end`]
         pub redeems: Option<(u32, u32)>,
     }
 
     #[cfg(feature = "std")]
-    impl Default for GenesisConfig {
+    impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             GenesisConfig {
                 official_signer: None,
@@ -70,9 +86,9 @@ pub mod pallet {
     }
 
     #[pallet::genesis_build]
-    impl<T: Config> GenesisBuild<T> for GenesisConfig {
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            if let Some(signer) = self.official_signer {
+            if let Some(signer) = self.official_signer.as_ref() {
                 OfficialSigner::<T>::put(signer);
             }
             if let Some((start, end)) = self.redeems {
@@ -126,7 +142,9 @@ pub mod pallet {
         /// Ensure: start < end
         #[pallet::weight(T::WeightInfo::mint_redeem(end.checked_sub(*start)))]
         pub fn mint_redeem(origin: OriginFor<T>, start: u32, end: u32) -> DispatchResult {
-            ensure_root(origin)?;
+            let who = ensure_signed(origin)?;
+            T::Manager::ensure_manager(who)?;
+
             ensure!(start < end, Error::<T>::RangeInvaild);
 
             let mut nouce = start;
@@ -149,14 +167,21 @@ pub mod pallet {
         ///
         /// Ensure: The length of name needs to be greater than 3.
         #[pallet::weight(T::WeightInfo::name_redeem())]
+        #[frame_support::transactional]
         pub fn name_redeem(
             origin: OriginFor<T>,
             name: Vec<u8>,
             duration: T::Moment,
             nouce: u32,
             code: Vec<u8>,
+            owner: T::AccountId,
         ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
+            let _who = ensure_signed(origin)?;
+
+            ensure!(
+                Redeems::<T>::contains_key(nouce),
+                Error::<T>::RedeemsHasBeenUsed
+            );
 
             let (label, _) =
                 Label::<T::Hash>::new(&name).ok_or_else(|| Error::<T>::ParseLabelFailed)?;
@@ -166,26 +191,23 @@ pub mod pallet {
 
             let mut signature_input = &code[..];
 
-            let signature = AnySignature::decode(&mut signature_input)
+            let signature = T::Signature::decode(&mut signature_input)
                 .map_err(|_| Error::<T>::InputCodeParseFailed)?;
 
             let signer = OfficialSigner::<T>::get();
 
             ensure!(
-                signature.verify(&data[..], &signer),
+                T::Pair::verify(&signature, &data[..], &signer),
                 Error::<T>::InvalidSignature
             );
 
-            ensure!(
-                Redeems::<T>::contains_key(nouce),
-                Error::<T>::RedeemsHasBeenUsed
-            );
+            let node = label.encode_with_basenode(T::BaseNode::get());
 
-            T::Registrar::for_redeem_code(name, who.clone(), duration, label)?;
+            T::Registrar::for_redeem_code(name, owner.clone(), duration, label)?;
 
             Redeems::<T>::remove(nouce);
 
-            Self::deposit_event(Event::<T>::RedeemCodeUsed(code, label_node, who));
+            Self::deposit_event(Event::<T>::RedeemCodeUsed(code, node, owner));
 
             Ok(())
         }
@@ -201,14 +223,21 @@ pub mod pallet {
         ///
         /// Ensure: The length of name needs to be greater than 10.
         #[pallet::weight(T::WeightInfo::name_redeem_any())]
+        #[frame_support::transactional]
         pub fn name_redeem_any(
             origin: OriginFor<T>,
             name: Vec<u8>,
             duration: T::Moment,
             nouce: u32,
             code: Vec<u8>,
+            owner: T::AccountId,
         ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
+            let _who = ensure_signed(origin)?;
+
+            ensure!(
+                Redeems::<T>::contains_key(nouce),
+                Error::<T>::RedeemsHasBeenUsed
+            );
 
             let (label, label_len) =
                 Label::<T::Hash>::new(&name).ok_or_else(|| Error::<T>::ParseLabelFailed)?;
@@ -219,24 +248,23 @@ pub mod pallet {
 
             let mut signature_input = &code[..];
 
-            let signature = AnySignature::decode(&mut signature_input)
+            let signature = T::Signature::decode(&mut signature_input)
                 .map_err(|_| Error::<T>::InputCodeParseFailed)?;
 
             let signer = OfficialSigner::<T>::get();
 
             ensure!(
-                signature.verify(&data[..], &signer),
+                T::Pair::verify(&signature, &data[..], &signer),
                 Error::<T>::InvalidSignature
             );
 
-            ensure!(
-                Redeems::<T>::contains_key(nouce),
-                Error::<T>::RedeemsHasBeenUsed
-            );
+            let node = label.encode_with_basenode(T::BaseNode::get());
 
-            T::Registrar::for_redeem_code(name, who, duration, label)?;
+            T::Registrar::for_redeem_code(name, owner.clone(), duration, label)?;
 
             Redeems::<T>::remove(nouce);
+
+            Self::deposit_event(Event::<T>::RedeemCodeUsed(code, node, owner));
 
             Ok(())
         }

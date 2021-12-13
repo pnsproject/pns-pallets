@@ -7,6 +7,7 @@ type BalanceOf<T> = <<T as Config>::Currency as frame_support::traits::Currency<
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use crate::traits::{EnsureManager, ExchangeRate};
     use frame_support::traits::{Currency, Get};
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
@@ -35,7 +36,14 @@ pub mod pallet {
         #[pallet::constant]
         type MaximumLength: Get<u8>;
 
+        type ExchangeRate: ExchangeRate<Balance = BalanceOf<Self>>;
+
+        #[pallet::constant]
+        type RateScale: Get<BalanceOf<Self>>;
+
         type WeightInfo: WeightInfo;
+
+        type Manager: EnsureManager<AccountId = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -47,9 +55,6 @@ pub mod pallet {
 
     #[pallet::storage]
     pub type RentPrice<T: Config> = StorageValue<_, Vec<BalanceOf<T>>, ValueQuery>;
-
-    #[pallet::storage]
-    pub type Price<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
@@ -97,7 +102,8 @@ pub mod pallet {
         /// Internal root method.
         #[pallet::weight(T::WeightInfo::set_price())]
         pub fn set_base_price(origin: OriginFor<T>, prices: Vec<BalanceOf<T>>) -> DispatchResult {
-            ensure_root(origin)?;
+            let who = ensure_signed(origin)?;
+            T::Manager::ensure_manager(who)?;
 
             <BasePrice<T>>::put(&prices);
 
@@ -108,7 +114,8 @@ pub mod pallet {
         /// Internal root method.
         #[pallet::weight(T::WeightInfo::set_price())]
         pub fn set_rent_price(origin: OriginFor<T>, prices: Vec<BalanceOf<T>>) -> DispatchResult {
-            ensure_root(origin)?;
+            let who = ensure_signed(origin)?;
+            T::Manager::ensure_manager(who)?;
 
             <RentPrice<T>>::put(&prices);
 
@@ -118,9 +125,14 @@ pub mod pallet {
         }
     }
 }
-use crate::traits::PriceOracle;
+use crate::traits::{ExchangeRate, PriceOracle};
 use frame_support::pallet_prelude::Weight;
-use sp_std::ops::Mul;
+use frame_support::traits::Get;
+use sp_runtime::{
+    traits::{CheckedDiv, CheckedMul},
+    SaturatedConversion,
+};
+
 pub trait WeightInfo {
     fn set_price() -> Weight;
 }
@@ -130,8 +142,35 @@ impl<T: Config> PriceOracle for Pallet<T> {
 
     type Balance = BalanceOf<T>;
 
-    fn renew_price(name_len: usize, duration: Self::Duration) -> Self::Balance {
-        use sp_runtime::SaturatedConversion;
+    // TODO: 更合理的押金计算方式
+    fn deposit_fee(name_len: usize) -> Option<Self::Balance> {
+        Self::register_fee(name_len).and_then(|register_fee| {
+            register_fee.checked_div(&Self::Balance::saturated_from(2_u128))
+        })
+    }
+
+    fn register_fee(name_len: usize) -> Option<Self::Balance> {
+        let base_prices = BasePrice::<T>::get();
+        let prices_len = base_prices.len();
+        let len = if name_len > prices_len {
+            name_len
+        } else {
+            prices_len
+        };
+        let exchange_rate = T::ExchangeRate::get_exchange_rate();
+
+        base_prices[len - 1]
+            .checked_mul(&exchange_rate)
+            .and_then(|value| value.checked_div(&T::RateScale::get()))
+    }
+
+    fn registry_price(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
+        let register_price = Self::register_fee(name_len)?;
+        let rent_price = Self::renew_price(name_len, duration)?;
+
+        Some(register_price + rent_price)
+    }
+    fn renew_price(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
         let rent_prices = RentPrice::<T>::get();
         let prices_len = rent_prices.len();
         let len = if name_len > prices_len {
@@ -140,31 +179,12 @@ impl<T: Config> PriceOracle for Pallet<T> {
             prices_len
         };
         let duration = duration.saturated_into::<u128>();
-        let rent_price = rent_prices[len - 1].saturated_into::<u128>();
-        Self::Balance::saturated_from(rent_price.mul(duration))
-    }
+        let rent_price = (rent_prices[len - 1].checked_mul(&T::ExchangeRate::get_exchange_rate()))?
+            .saturated_into::<u128>();
 
-    fn registry_price(name_len: usize, duration: Self::Duration) -> Self::Balance {
-        let base_prices = BasePrice::<T>::get();
-        let prices_len = base_prices.len();
-        let len = if name_len > prices_len {
-            name_len
-        } else {
-            prices_len
-        };
-        let rent_price = Self::renew_price(name_len, duration);
-
-        base_prices[len - 1] + rent_price
-    }
-
-    fn register_fee(name_len: usize) -> Self::Balance {
-        let base_prices = BasePrice::<T>::get();
-        let prices_len = base_prices.len();
-        let len = if name_len > prices_len {
-            name_len
-        } else {
-            prices_len
-        };
-        base_prices[len - 1]
+        Some(
+            Self::Balance::saturated_from(rent_price.checked_mul(duration)?)
+                .checked_div(&T::RateScale::get())?,
+        )
     }
 }

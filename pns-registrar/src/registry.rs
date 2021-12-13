@@ -7,7 +7,7 @@ pub mod pallet {
     use crate::{nft, traits::Registrar};
     use codec::FullCodec;
     use frame_support::{pallet_prelude::*, Blake2_128Concat};
-    use frame_system::{ensure_root, ensure_signed, pallet_prelude::*};
+    use frame_system::{ensure_signed, pallet_prelude::*};
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
     use sp_runtime::traits::{StaticLookup, Zero};
@@ -69,6 +69,9 @@ pub mod pallet {
     #[pallet::storage]
     pub type Official<T: Config> = StorageValue<_, T::AccountId, ValueQuery>;
 
+    #[pallet::storage]
+    pub type Managers<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, (), ValueQuery>;
+
     #[derive(
         Encode, Decode, PartialEq, Eq, RuntimeDebug, Clone, TypeInfo, Serialize, Deserialize,
     )]
@@ -93,6 +96,7 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         pub origin: Vec<(T::Hash, DomainTracing<T::Hash>)>,
         pub official: Option<T::AccountId>,
+        pub managers: Vec<T::AccountId>,
     }
 
     #[cfg(feature = "std")]
@@ -101,6 +105,7 @@ pub mod pallet {
             GenesisConfig {
                 origin: Vec::with_capacity(0),
                 official: None,
+                managers: Vec::with_capacity(0),
             }
         }
     }
@@ -113,6 +118,9 @@ pub mod pallet {
             }
             if let Some(official) = &self.official {
                 Official::<T>::put(official);
+            }
+            for manager in self.managers.iter() {
+                Managers::<T>::insert(manager, ());
             }
         }
     }
@@ -226,6 +234,7 @@ pub mod pallet {
             label_node: T::Hash,
             to: T::AccountId,
             capacity: u32,
+            // `[pre_owner]`
             do_payments: impl FnOnce(Option<&T::AccountId>) -> DispatchResult,
         ) -> DispatchResult {
             let class_id = T::ClassId::zero();
@@ -467,8 +476,37 @@ pub mod pallet {
 
         #[pallet::weight(T::WeightInfo::set_official())]
         pub fn set_official(origin: OriginFor<T>, official: T::AccountId) -> DispatchResult {
-            ensure_root(origin)?;
+            use crate::traits::EnsureManager;
+            if !ensure_root(origin.clone()).is_ok() {
+                let who = ensure_signed(origin)?;
+
+                ensure!(
+                    who == Official::<T>::get() || Pallet::<T>::ensure_manager(who).is_ok(),
+                    Error::<T>::NoPermission
+                );
+            }
+
             Official::<T>::put(official);
+            Ok(())
+        }
+        #[pallet::weight(T::WeightInfo::add_manger())]
+        pub fn add_manger(origin: OriginFor<T>, manager: T::AccountId) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+
+            ensure!(who == Official::<T>::get(), Error::<T>::NoPermission);
+
+            Managers::<T>::insert(manager, ());
+
+            Ok(())
+        }
+        #[pallet::weight(T::WeightInfo::remove_manger())]
+        pub fn remove_manger(origin: OriginFor<T>, manager: T::AccountId) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+
+            ensure!(who == Official::<T>::get(), Error::<T>::NoPermission);
+
+            Managers::<T>::remove(manager);
+
             Ok(())
         }
     }
@@ -484,6 +522,8 @@ pub trait WeightInfo {
     fn set_resolver() -> Weight;
     fn destroy() -> Weight;
     fn set_official() -> Weight;
+    fn add_manger() -> Weight;
+    fn remove_manger() -> Weight;
 }
 
 impl<T: pallet::Config> crate::traits::NFT<T::AccountId> for pallet::Pallet<T> {
@@ -554,5 +594,17 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
     #[frame_support::require_transactional]
     fn reclaimed(caller: &Self::AccountId, node: Self::Hash) -> sp_runtime::DispatchResult {
         Self::do_reclaimed(caller, node)
+    }
+}
+
+impl<T: Config> crate::traits::EnsureManager for pallet::Pallet<T> {
+    type AccountId = T::AccountId;
+
+    fn ensure_manager(account: Self::AccountId) -> Result<(), frame_support::error::BadOrigin> {
+        if pallet::Managers::<T>::contains_key(account) {
+            Ok(())
+        } else {
+            Err(frame_support::error::BadOrigin)
+        }
     }
 }
