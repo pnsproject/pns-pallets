@@ -179,53 +179,6 @@ pub trait ExchangeRate {
     fn get_exchange_rate() -> Self::Balance;
 }
 
-#[cfg(test)]
-use codec::Decode;
-#[cfg(test)]
-use sp_core::Pair;
-#[cfg(test)]
-pub trait RedeemsGenerate {
-    type Moment: Encode;
-
-    type Hash: Encode;
-
-    type Pair: Pair<Public = Self::Public, Signature = Self::Signature>;
-
-    type Public: Clone
-        + sp_core::Public
-        + core::hash::Hash
-        + Decode
-        + Encode
-        + codec::EncodeLike
-        + MaybeSerializeDeserialize
-        + Eq
-        + PartialEq
-        + core::fmt::Debug;
-
-    type Signature: AsRef<[u8]> + Decode;
-
-    fn generate_redeem(
-        label_node: Self::Hash,
-        nouce: u32,
-        duration: Self::Moment,
-        pair: &Self::Pair,
-    ) -> Self::Signature {
-        let data = (label_node, duration, nouce).encode();
-
-        pair.sign(&data)
-    }
-
-    fn generate_redeem_without_name(
-        nouce: u32,
-        duration: Self::Moment,
-        pair: &Self::Pair,
-    ) -> Self::Signature {
-        let data = (duration, nouce).encode();
-
-        pair.sign(&data)
-    }
-}
-
 pub trait Manager {
     type AccountId;
 

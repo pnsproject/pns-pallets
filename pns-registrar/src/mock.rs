@@ -349,15 +349,3 @@ impl pallet_aura::Config for Test {
     type DisabledValidators = ();
     type MaxAuthorities = MaxAuthorities;
 }
-
-impl crate::traits::RedeemsGenerate for Test {
-    type Moment = Moment;
-
-    type Hash = Hash;
-
-    type Pair = sp_core::ed25519::Pair;
-
-    type Public = sp_core::ed25519::Public;
-
-    type Signature = sp_core::ed25519::Signature;
-}
