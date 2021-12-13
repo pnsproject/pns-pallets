@@ -7,7 +7,7 @@ pub mod pallet {
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
-    use sp_core::Pair;
+    use sp_core::crypto::Pair;
     use sp_runtime::traits::AtLeast32BitUnsigned;
     use sp_std::vec::Vec;
 
@@ -41,7 +41,7 @@ pub mod pallet {
         type Pair: Pair<Public = Self::Public, Signature = Self::Signature>;
 
         type Public: Clone
-            + sp_core::Public
+            + sp_core::crypto::Public
             + core::hash::Hash
             + TypeInfo
             + Decode
