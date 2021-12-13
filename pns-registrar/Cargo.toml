@@ -22,7 +22,7 @@ default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-11'
 version = '4.0.0-dev'
-features = ["full_crypto"]
+
 
 
 [dependencies.sp-io]
