@@ -38,8 +38,7 @@ pub mod pallet {
         #[pallet::constant]
         type BaseNode: Get<Self::Hash>;
 
-        type Public: core::hash::Hash
-            + TypeInfo
+        type Public: TypeInfo
             + Decode
             + Encode
             + EncodeLike
