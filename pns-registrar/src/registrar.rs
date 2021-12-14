@@ -450,6 +450,83 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     type AccountId = T::AccountId;
     type Duration = T::Moment;
 
+    fn check_expires_registrable(node: Self::Hash) -> sp_runtime::DispatchResult {
+        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
+
+        let expire = RegistrarInfos::<T>::get(node)
+            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
+            .expire;
+
+        frame_support::ensure!(now > expire + T::GracePeriod::get(), Error::<T>::Occupied);
+
+        Ok(())
+    }
+
+    // fn for_auction_set_expires(
+    // 	node: Self::Hash,
+    // 	deposit: Self::Balance,
+    // 	register_fee: Self::Balance,
+    // ) {
+    // RegistrarInfos::<T>::mutate(node, |info| {
+    // 	let info = info.get_or_insert(RegistrarInfoOf::<T> {
+    // 		expire: Default::default(),
+    // 		capacity: T::DefaultCapacity::get(),
+    // 		deposit: ,
+    // 		register_fee:,
+    // 	});
+    // 	info.expire = frame_system::Pallet::<T>::block_number();
+
+    // 	info.deposit = deposit;
+    // 	info.register_fee = register_fee;
+    // })
+    // }
+
+    fn check_expires_renewable(node: Self::Hash) -> sp_runtime::DispatchResult {
+        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
+
+        let expire = RegistrarInfos::<T>::get(node)
+            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
+            .expire;
+
+        frame_support::ensure!(
+            now < expire + T::GracePeriod::get(),
+            Error::<T>::NotRenewable
+        );
+
+        Ok(())
+    }
+
+    fn check_expires_useable(node: Self::Hash) -> sp_runtime::DispatchResult {
+        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
+
+        let expire = RegistrarInfos::<T>::get(node)
+            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
+            .expire;
+
+        frame_support::ensure!(now < expire, Error::<T>::NotUseable);
+
+        Ok(())
+    }
+
+    fn clear_registrar_info(
+        node: Self::Hash,
+        owner: &Self::AccountId,
+    ) -> sp_runtime::DispatchResult {
+        RegistrarInfos::<T>::mutate_exists(node, |info| -> Option<()> {
+            if let Some(info) = info {
+                T::Currency::transfer(
+                    &T::Manager::get_official_account(),
+                    owner,
+                    info.deposit,
+                    frame_support::traits::ExistenceRequirement::KeepAlive,
+                )
+                .ok()?;
+            }
+            None
+        });
+        Ok(())
+    }
+
     fn for_redeem_code(
         name: Vec<u8>,
         to: Self::AccountId,
@@ -501,83 +578,6 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
             },
         )?;
         Self::deposit_event(Event::<T>::NameRegistered(name, label_node, to, expire));
-
-        Ok(())
-    }
-
-    // fn for_auction_set_expires(
-    // 	node: Self::Hash,
-    // 	deposit: Self::Balance,
-    // 	register_fee: Self::Balance,
-    // ) {
-    // RegistrarInfos::<T>::mutate(node, |info| {
-    // 	let info = info.get_or_insert(RegistrarInfoOf::<T> {
-    // 		expire: Default::default(),
-    // 		capacity: T::DefaultCapacity::get(),
-    // 		deposit: ,
-    // 		register_fee:,
-    // 	});
-    // 	info.expire = frame_system::Pallet::<T>::block_number();
-
-    // 	info.deposit = deposit;
-    // 	info.register_fee = register_fee;
-    // })
-    // }
-
-    fn clear_registrar_info(
-        node: Self::Hash,
-        owner: &Self::AccountId,
-    ) -> sp_runtime::DispatchResult {
-        RegistrarInfos::<T>::mutate_exists(node, |info| -> Option<()> {
-            if let Some(info) = info {
-                T::Currency::transfer(
-                    &T::Manager::get_official_account(),
-                    owner,
-                    info.deposit,
-                    frame_support::traits::ExistenceRequirement::KeepAlive,
-                )
-                .ok()?;
-            }
-            None
-        });
-        Ok(())
-    }
-
-    fn check_expires_useable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
-
-        let expire = RegistrarInfos::<T>::get(node)
-            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
-            .expire;
-
-        frame_support::ensure!(now < expire, Error::<T>::NotUseable);
-
-        Ok(())
-    }
-
-    fn check_expires_registrable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
-
-        let expire = RegistrarInfos::<T>::get(node)
-            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
-            .expire;
-
-        frame_support::ensure!(now > expire + T::GracePeriod::get(), Error::<T>::Occupied);
-
-        Ok(())
-    }
-
-    fn check_expires_renewable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
-
-        let expire = RegistrarInfos::<T>::get(node)
-            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
-            .expire;
-
-        frame_support::ensure!(
-            now < expire + T::GracePeriod::get(),
-            Error::<T>::NotRenewable
-        );
 
         Ok(())
     }
