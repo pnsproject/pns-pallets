@@ -18,7 +18,6 @@ git = 'https://github.com/paritytech/substrate.git'
 branch = "polkadot-v0.9.13"
 
 
-
 [dependencies.sp-io]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
@@ -30,12 +29,10 @@ git = 'https://github.com/paritytech/substrate.git'
 branch = "polkadot-v0.9.13"
 
 
-
 [dependencies.sp-runtime]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = "polkadot-v0.9.13"
-
 
 
 [dependencies.codec]
@@ -51,19 +48,16 @@ optional = true
 branch = "polkadot-v0.9.13"
 
 
-
 [dependencies.frame-support]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = "polkadot-v0.9.13"
 
 
-
 [dependencies.frame-system]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = "polkadot-v0.9.13"
-
 
 
 [dependencies.scale-info]
