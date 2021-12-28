@@ -1,7 +1,7 @@
 [package]
 authors = ['Cupnfish']
 description = 'Ens code is rewritten using substrate.'
-edition = '2018'
+edition = '2021'
 homepage = 'https://app.pns.link/'
 license = 'Unlicense'
 name = "pns-resolvers"
