@@ -105,91 +105,95 @@ pub struct TestWeightInfo;
 
 impl pns_resolvers::WeightInfo for TestWeightInfo {
     fn set_text(content_len: usize) -> Weight {
-        10 * content_len as Weight + 10_000
+        10 * content_len as Weight + 0
     }
 
     fn set_account() -> Weight {
-        10_000
+        0
     }
 }
 
 impl crate::registry::WeightInfo for TestWeightInfo {
-    fn set_approval_for_all() -> Weight {
-        10_000
+    fn approval_for_all() -> Weight {
+        0
     }
 
     fn set_resolver() -> Weight {
-        10_000
+        0
     }
 
     fn destroy() -> Weight {
-        10_000
+        0
     }
 
     fn set_official() -> Weight {
-        10_000
+        0
     }
 
     fn add_manger() -> Weight {
-        10_000
+        0
     }
 
     fn remove_manger() -> Weight {
-        10_000
+        0
+    }
+
+    fn approve() -> Weight {
+        0
     }
 }
 
 impl crate::registrar::WeightInfo for TestWeightInfo {
     fn mint_subname() -> Weight {
-        10_000
+        0
     }
 
     fn register() -> Weight {
-        10_000
+        0
     }
 
     fn renew() -> Weight {
-        10_000
+        0
     }
 
     fn set_owner() -> Weight {
-        10_000
+        0
     }
 
     fn reclaimed() -> Weight {
-        10_000
+        0
     }
 
-    fn add_blacklist() -> Weight {
-        10_000
+    fn add_reserved() -> Weight {
+        0
     }
 
-    fn remove_blacklist() -> Weight {
-        10_000
+    fn remove_reserved() -> Weight {
+        0
     }
 }
 
 impl crate::redeem_code::WeightInfo for TestWeightInfo {
     fn mint_redeem(len: Option<u32>) -> Weight {
         if let Some(len) = len {
-            len as Weight * 10_000
+            len as Weight * 0
         } else {
-            10_000
+            0
         }
     }
 
     fn name_redeem() -> Weight {
-        10_000
+        0
     }
 
     fn name_redeem_any() -> Weight {
-        10_000
+        0
     }
 }
 
 impl crate::price_oracle::WeightInfo for TestWeightInfo {
     fn set_price() -> Weight {
-        10_000
+        0
     }
 }
 

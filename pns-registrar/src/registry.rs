@@ -6,7 +6,7 @@ pub mod pallet {
     use super::*;
     use crate::{nft, traits::Registrar};
     use codec::FullCodec;
-    use frame_support::{pallet_prelude::*, Blake2_128Concat};
+    use frame_support::pallet_prelude::*;
     use frame_system::{ensure_signed, pallet_prelude::*};
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
@@ -82,21 +82,21 @@ pub mod pallet {
     }
     /// [`owner`,`account`] if `account` is `operater` -> ()
     #[pallet::storage]
-    pub type Operators<T: Config> = StorageDoubleMap<
-        _,
-        Blake2_128Concat,
-        T::AccountId,
-        Blake2_128Concat,
-        T::AccountId,
-        (),
-        ValueQuery,
-    >;
+    pub type OperatorApprovals<T: Config> =
+        StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, T::AccountId, (), ValueQuery>;
+
+    /// [`node`,`account`] `node` -> `account`
+    #[pallet::storage]
+    pub type TokenApprovals<T: Config> =
+        StorageDoubleMap<_, Twox64Concat, T::Hash, Twox64Concat, T::AccountId, (), ValueQuery>;
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub origin: Vec<(T::Hash, DomainTracing<T::Hash>)>,
         pub official: Option<T::AccountId>,
         pub managers: Vec<T::AccountId>,
+        pub operators: Vec<(T::AccountId, T::AccountId)>,
+        pub token_approvals: Vec<(T::Hash, T::AccountId)>,
     }
 
     #[cfg(feature = "std")]
@@ -106,6 +106,8 @@ pub mod pallet {
                 origin: Vec::with_capacity(0),
                 official: None,
                 managers: Vec::with_capacity(0),
+                operators: Vec::with_capacity(0),
+                token_approvals: Vec::with_capacity(0),
             }
         }
     }
@@ -121,6 +123,12 @@ pub mod pallet {
             }
             for manager in self.managers.iter() {
                 Managers::<T>::insert(manager, ());
+            }
+            for (owner, operator) in self.operators.iter() {
+                OperatorApprovals::<T>::insert(owner, operator, ());
+            }
+            for (hash, to) in self.token_approvals.iter() {
+                TokenApprovals::<T>::insert(hash, to, ());
             }
         }
     }
@@ -168,6 +176,8 @@ pub mod pallet {
         SubnodeNotClear,
         /// You may be burning a root node or an unknown node?
         BanBurnBaseNode,
+        /// ERC721: approval to current owner
+        ApprovalFailure,
     }
 
     // helper
@@ -178,7 +188,9 @@ pub mod pallet {
                 .owner;
 
             ensure!(
-                caller == owner || Operators::<T>::contains_key(owner, caller),
+                caller == owner
+                    || OperatorApprovals::<T>::contains_key(owner, caller)
+                    || TokenApprovals::<T>::contains_key(node, caller),
                 Error::<T>::NoPermission
             );
 
@@ -192,7 +204,8 @@ pub mod pallet {
                 let token_owner = token_info.owner;
                 ensure!(token_info.data.children == 0, Error::<T>::SubnodeNotClear);
                 ensure!(
-                    token_owner == caller || Operators::<T>::contains_key(&token_owner, &caller),
+                    token_owner == caller
+                        || OperatorApprovals::<T>::contains_key(&token_owner, &caller),
                     Error::<T>::NoPermission
                 );
 
@@ -244,7 +257,7 @@ pub mod pallet {
             if let Some(node_info) = nft::Pallet::<T>::tokens(class_id, node) {
                 let node_owner = node_info.owner;
                 ensure!(
-                    owner == &node_owner || Operators::<T>::contains_key(node_owner, owner),
+                    owner == &node_owner || OperatorApprovals::<T>::contains_key(node_owner, owner),
                     Error::<T>::NoPermission
                 );
 
@@ -336,7 +349,7 @@ pub mod pallet {
             let owner = token_info.owner;
 
             ensure!(
-                &owner == caller || Operators::<T>::contains_key(&owner, &caller),
+                &owner == caller || OperatorApprovals::<T>::contains_key(&owner, &caller),
                 Error::<T>::NoPermission
             );
 
@@ -373,7 +386,7 @@ pub mod pallet {
             let owner = token_info.owner;
 
             ensure!(
-                &owner == from || Operators::<T>::contains_key(&owner, &from),
+                &owner == from || OperatorApprovals::<T>::contains_key(&owner, &from),
                 Error::<T>::NoPermission
             );
 
@@ -413,7 +426,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         #[inline(always)]
         fn do_set_approval_for_all(caller: T::AccountId, operator: T::AccountId, approved: bool) {
-            Operators::<T>::mutate_exists(&caller, &operator, |flag| {
+            OperatorApprovals::<T>::mutate_exists(&caller, &operator, |flag| {
                 if approved {
                     flag.replace(())
                 } else {
@@ -425,7 +438,7 @@ pub mod pallet {
         // 给Rpc调用
         #[inline(always)]
         pub fn get_operators(caller: T::AccountId) -> Vec<T::AccountId> {
-            Operators::<T>::iter_prefix(caller)
+            OperatorApprovals::<T>::iter_prefix(caller)
                 .map(|(operator, _)| operator)
                 .collect()
         }
@@ -434,8 +447,8 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Sharing your account permissions with others is a discreet operation,
         /// and when methods such as `reclaim` are called, the deposit is returned to the caller.
-        #[pallet::weight(T::WeightInfo::set_approval_for_all())]
-        pub fn set_approval_for_all(
+        #[pallet::weight(T::WeightInfo::approval_for_all())]
+        pub fn approval_for_all(
             origin: OriginFor<T>,
             operator: <T::Lookup as StaticLookup>::Source,
             approved: bool,
@@ -509,6 +522,35 @@ pub mod pallet {
 
             Ok(())
         }
+
+        #[pallet::weight(T::WeightInfo::approve())]
+        pub fn approve(
+            origin: OriginFor<T>,
+            to: T::AccountId,
+            node: T::Hash,
+            approved: bool,
+        ) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+
+            let owner = nft::Pallet::<T>::tokens(T::ClassId::zero(), node)
+                .ok_or_else(|| Error::<T>::NotExist)?
+                .owner;
+
+            ensure!(to != owner, Error::<T>::ApprovalFailure);
+
+            ensure!(
+                sender == owner || OperatorApprovals::<T>::contains_key(&owner, &sender),
+                Error::<T>::NoPermission
+            );
+
+            if approved {
+                TokenApprovals::<T>::insert(node, to, ());
+            } else {
+                TokenApprovals::<T>::remove(node, to);
+            }
+
+            Ok(())
+        }
     }
 }
 
@@ -518,12 +560,13 @@ use frame_support::{
 };
 
 pub trait WeightInfo {
-    fn set_approval_for_all() -> Weight;
+    fn approval_for_all() -> Weight;
     fn set_resolver() -> Weight;
     fn destroy() -> Weight;
     fn set_official() -> Weight;
     fn add_manger() -> Weight;
     fn remove_manger() -> Weight;
+    fn approve() -> Weight;
 }
 
 impl<T: pallet::Config> crate::traits::NFT<T::AccountId> for pallet::Pallet<T> {
