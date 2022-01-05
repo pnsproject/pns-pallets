@@ -76,9 +76,9 @@ pub mod pallet {
     pub type RegistrarInfos<T: Config> =
         StorageMap<_, Blake2_128Concat, T::Hash, RegistrarInfoOf<T>>;
 
-    /// `name_hash` if in `black_list` -> ()
+    /// `name_hash` if in `reserved_list` -> ()
     #[pallet::storage]
-    pub type BlackList<T: Config> = StorageMap<_, Twox64Concat, T::Hash, (), ValueQuery>;
+    pub type ReservedList<T: Config> = StorageMap<_, Twox64Concat, T::Hash, (), ValueQuery>;
 
     #[derive(
         Encode, Decode, PartialEq, Eq, RuntimeDebug, Clone, TypeInfo, Deserialize, Serialize,
@@ -99,7 +99,7 @@ pub mod pallet {
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub infos: Vec<(T::Hash, RegistrarInfoOf<T>)>,
-        pub blacklist: sp_std::collections::btree_set::BTreeSet<T::Hash>,
+        pub reserved_list: sp_std::collections::btree_set::BTreeSet<T::Hash>,
     }
 
     #[cfg(feature = "std")]
@@ -107,7 +107,7 @@ pub mod pallet {
         fn default() -> Self {
             GenesisConfig {
                 infos: Vec::with_capacity(0),
-                blacklist: sp_std::collections::btree_set::BTreeSet::new(),
+                reserved_list: sp_std::collections::btree_set::BTreeSet::new(),
             }
         }
     }
@@ -119,8 +119,8 @@ pub mod pallet {
                 RegistrarInfos::<T>::insert(node, info);
             }
 
-            for node in self.blacklist.iter() {
-                BlackList::<T>::insert(node, ());
+            for node in self.reserved_list.iter() {
+                ReservedList::<T>::insert(node, ());
             }
         }
     }
@@ -172,23 +172,23 @@ pub mod pallet {
     }
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Add a domain from the blacklist
+        /// Add a domain from the reserved list
         /// Only root
-        #[pallet::weight(T::WeightInfo::add_blacklist())]
-        pub fn add_blacklist(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
+        #[pallet::weight(T::WeightInfo::add_reserved())]
+        pub fn add_reserved(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
             let who = ensure_signed(origin)?;
             T::Manager::ensure_manager(who)?;
 
-            BlackList::<T>::insert(node, ());
+            ReservedList::<T>::insert(node, ());
             Ok(())
         }
-        /// Remove a domain from the blacklist
+        /// Remove a domain from the reserved list
         /// Only root
-        #[pallet::weight(T::WeightInfo::remove_blacklist())]
-        pub fn remove_blacklist(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
+        #[pallet::weight(T::WeightInfo::remove_reserved())]
+        pub fn remove_reserved(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
             let who = ensure_signed(origin)?;
             T::Manager::ensure_manager(who)?;
-            BlackList::<T>::remove(node);
+            ReservedList::<T>::remove(node);
             Ok(())
         }
         /// Register a domain name.
@@ -238,7 +238,7 @@ pub mod pallet {
             let label_node = label.encode_with_basenode(base_node);
 
             ensure!(
-                !BlackList::<T>::contains_key(&label_node),
+                !ReservedList::<T>::contains_key(&label_node),
                 Error::<T>::Frozen
             );
 
@@ -440,8 +440,8 @@ pub trait WeightInfo {
     fn renew() -> Weight;
     fn set_owner() -> Weight;
     fn reclaimed() -> Weight;
-    fn add_blacklist() -> Weight;
-    fn remove_blacklist() -> Weight;
+    fn add_reserved() -> Weight;
+    fn remove_reserved() -> Weight;
 }
 
 impl<T: Config> crate::traits::Registrar for Pallet<T> {
