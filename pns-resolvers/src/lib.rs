@@ -98,6 +98,7 @@ pub mod pallet {
         Keywords,
         Twitter,
         Github,
+        Ipfs,
     }
     /// text mapping
     #[pallet::storage]

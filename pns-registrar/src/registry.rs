@@ -182,7 +182,7 @@ pub mod pallet {
 
     // helper
     impl<T: Config> Pallet<T> {
-        pub(crate) fn authorised(caller: &T::AccountId, node: T::Hash) -> DispatchResult {
+        pub fn authorised(caller: &T::AccountId, node: T::Hash) -> DispatchResult {
             let owner = &nft::Pallet::<T>::tokens(T::ClassId::zero(), node)
                 .ok_or_else(|| Error::<T>::NotExist)?
                 .owner;
