@@ -135,7 +135,7 @@ pub mod pallet {
 
             let mut nouce = start;
 
-            while nouce < end {
+            while nouce <= end {
                 Redeems::<T>::insert(nouce, ());
                 nouce = nouce + 1;
             }
