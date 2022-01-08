@@ -81,10 +81,10 @@ fn register_test() {
 
         let now_free = Balances::free_balance(test_account);
         let now_deposit = Balances::reserved_balance(official_account);
+        let deposit = PriceOracle::deposit_fee(name.len()).unwrap();
+        let gas_fee = init_free - now_free - total_price - deposit;
 
-        let gas_fee = init_free - now_free - total_price;
-
-        println!("gas fee: {}", gas_fee / BASE);
+        assert_eq!(gas_fee, 0);
 
         assert_eq!(
             now_deposit - init_deposit,
@@ -100,6 +100,14 @@ fn register_test() {
         assert!(len2 == 11);
         let node = label.encode_with_basenode(BASE_NODE);
         let node2 = label2.encode_with_basenode(BASE_NODE);
+
+        assert_ok!(Registry::approve(
+            Origin::signed(test_account),
+            9944,
+            node,
+            true
+        ));
+
         let info = registrar::RegistrarInfos::<Test>::get(node).unwrap();
 
         let now = Timestamp::now();

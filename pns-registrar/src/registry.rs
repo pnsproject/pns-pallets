@@ -205,7 +205,8 @@ pub mod pallet {
                 ensure!(token_info.data.children == 0, Error::<T>::SubnodeNotClear);
                 ensure!(
                     token_owner == caller
-                        || OperatorApprovals::<T>::contains_key(&token_owner, &caller),
+                        || OperatorApprovals::<T>::contains_key(&token_owner, &caller)
+                        || TokenApprovals::<T>::contains_key(token, &caller),
                     Error::<T>::NoPermission
                 );
 
@@ -257,7 +258,9 @@ pub mod pallet {
             if let Some(node_info) = nft::Pallet::<T>::tokens(class_id, node) {
                 let node_owner = node_info.owner;
                 ensure!(
-                    owner == &node_owner || OperatorApprovals::<T>::contains_key(node_owner, owner),
+                    owner == &node_owner
+                        || OperatorApprovals::<T>::contains_key(node_owner, owner)
+                        || TokenApprovals::<T>::contains_key(node, owner),
                     Error::<T>::NoPermission
                 );
 
@@ -349,7 +352,9 @@ pub mod pallet {
             let owner = token_info.owner;
 
             ensure!(
-                &owner == caller || OperatorApprovals::<T>::contains_key(&owner, &caller),
+                &owner == caller
+                    || OperatorApprovals::<T>::contains_key(&owner, &caller)
+                    || TokenApprovals::<T>::contains_key(token, &caller),
                 Error::<T>::NoPermission
             );
 
@@ -386,7 +391,9 @@ pub mod pallet {
             let owner = token_info.owner;
 
             ensure!(
-                &owner == from || OperatorApprovals::<T>::contains_key(&owner, &from),
+                &owner == from
+                    || OperatorApprovals::<T>::contains_key(&owner, &from)
+                    || TokenApprovals::<T>::contains_key(token, &from),
                 Error::<T>::NoPermission
             );
 
@@ -539,7 +546,9 @@ pub mod pallet {
             ensure!(to != owner, Error::<T>::ApprovalFailure);
 
             ensure!(
-                sender == owner || OperatorApprovals::<T>::contains_key(&owner, &sender),
+                sender == owner
+                    || OperatorApprovals::<T>::contains_key(&owner, &sender)
+                    || TokenApprovals::<T>::contains_key(node, &sender),
                 Error::<T>::NoPermission
             );
 
