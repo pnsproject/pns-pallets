@@ -52,11 +52,6 @@ pub mod pallet {
         RemovedOrigin(T::AccountId),
     }
 
-    #[pallet::error]
-    pub enum Error<T> {
-        NoPermission,
-    }
-
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight(T::WeightInfo::set_origin())]
