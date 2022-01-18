@@ -1,0 +1,122 @@
+pub use pallet::*;
+
+#[frame_support::pallet]
+pub mod pallet {
+    use super::WeightInfo;
+    use frame_support::pallet_prelude::*;
+    use frame_support::traits::EnsureOrigin;
+    use frame_system::pallet_prelude::*;
+    use sp_runtime::traits::StaticLookup;
+    use sp_std::vec::Vec;
+
+    #[pallet::config]
+    pub trait Config: frame_system::Config {
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+        type WeightInfo: WeightInfo;
+    }
+
+    #[pallet::pallet]
+    #[pallet::generate_store(pub(super) trait Store)]
+    pub struct Pallet<T>(_);
+
+    #[pallet::storage]
+    pub type Origins<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, ()>;
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        origins: Vec<T::AccountId>,
+    }
+
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                origins: Vec::with_capacity(0),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            for origin in self.origins.iter() {
+                Origins::<T>::insert(origin, ())
+            }
+        }
+    }
+
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    pub enum Event<T: Config> {
+        AddedOrigin(T::AccountId),
+        RemovedOrigin(T::AccountId),
+    }
+
+    #[pallet::error]
+    pub enum Error<T> {
+        NoPermission,
+    }
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
+        #[pallet::weight(T::WeightInfo::set_origin())]
+        pub fn set_origin(
+            origin: OriginFor<T>,
+            account: <T::Lookup as StaticLookup>::Source,
+            approved: bool,
+        ) -> DispatchResult {
+            let _who = Self::ensure_origin(origin)?;
+            let account = T::Lookup::lookup(account)?;
+
+            if approved {
+                Origins::<T>::insert(&account, ());
+                Self::deposit_event(Event::<T>::AddedOrigin(account));
+            } else {
+                Origins::<T>::remove(&account);
+                Self::deposit_event(Event::<T>::RemovedOrigin(account));
+            }
+
+            Ok(())
+        }
+        #[pallet::weight(T::WeightInfo::set_origin())]
+        pub fn set_origin_for_root(
+            origin: OriginFor<T>,
+            account: <T::Lookup as StaticLookup>::Source,
+            approved: bool,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+            let account = T::Lookup::lookup(account)?;
+
+            if approved {
+                Origins::<T>::insert(&account, ());
+                Self::deposit_event(Event::<T>::AddedOrigin(account));
+            } else {
+                Origins::<T>::remove(&account);
+                Self::deposit_event(Event::<T>::RemovedOrigin(account));
+            }
+
+            Ok(())
+        }
+    }
+}
+use frame_support::{dispatch::Weight, traits::EnsureOrigin};
+use frame_system::RawOrigin;
+
+impl<T: Config> EnsureOrigin<T::Origin> for Pallet<T> {
+    type Success = T::AccountId;
+    fn try_origin(o: T::Origin) -> Result<Self::Success, T::Origin> {
+        o.into().and_then(|o| match o {
+            RawOrigin::<T::AccountId>::Signed(who) if Origins::<T>::contains_key(&who) => Ok(who),
+            r => Err(T::Origin::from(r)),
+        })
+    }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    fn successful_origin() -> T::Origin {
+        O::from(RawOrigin::Signed(Default::default()))
+    }
+}
+
+pub trait WeightInfo {
+    fn set_origin() -> Weight;
+}

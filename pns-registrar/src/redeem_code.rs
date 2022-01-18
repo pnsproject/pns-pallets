@@ -3,9 +3,9 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::traits::{Available, Label, Manager, Registrar};
+    use crate::traits::{Available, Label, Official, Registrar};
     use codec::EncodeLike;
-    use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
+    use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::EnsureOrigin};
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
     use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, Verify};
@@ -55,7 +55,9 @@ pub mod pallet {
             + core::fmt::Debug
             + TypeInfo;
 
-        type Manager: Manager<AccountId = Self::AccountId>;
+        type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
+
+        type Official: Official<AccountId = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -128,8 +130,7 @@ pub mod pallet {
         /// Ensure: start < end
         #[pallet::weight(T::WeightInfo::mint_redeem(end.checked_sub(*start)))]
         pub fn mint_redeem(origin: OriginFor<T>, start: u32, end: u32) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            T::Manager::ensure_manager(who)?;
+            let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
             ensure!(start < end, Error::<T>::RangeInvaild);
 
@@ -175,7 +176,7 @@ pub mod pallet {
             let label_node = label.node;
             let data = (label_node, duration, nouce).encode();
 
-            let signer = T::Manager::get_official_account();
+            let signer = T::Official::get_official_account();
 
             ensure!(
                 code.verify(&data[..], &signer),
@@ -227,7 +228,7 @@ pub mod pallet {
 
             let data = (duration, nouce).encode();
 
-            let signer = T::Manager::get_official_account();
+            let signer = T::Official::get_official_account();
 
             ensure!(
                 code.verify(&data[..], &signer),

@@ -28,6 +28,7 @@ frame_support::construct_runtime!(
         RedeemCode: crate::redeem_code,
         Registrar: crate::registrar,
         Registry: crate::registry,
+        ManagerOrigin: crate::origin,
         Resolvers: pns_resolvers,
         Nft: crate::nft,
         Balances: pallet_balances,
@@ -48,7 +49,19 @@ impl pns_resolvers::Config for Test {
     type DomainHash = Hash;
 }
 
+impl crate::origin::Config for Test {
+    type Event = Event;
+
+    type WeightInfo = TestWeightInfo;
+}
+
 pub struct TestChecker;
+
+impl crate::origin::WeightInfo for TestWeightInfo {
+    fn set_origin() -> Weight {
+        0
+    }
+}
 
 impl pns_resolvers::traits::RegistryChecker for TestChecker {
     type Hash = Hash;
@@ -127,14 +140,6 @@ impl crate::registry::WeightInfo for TestWeightInfo {
     }
 
     fn set_official() -> Weight {
-        0
-    }
-
-    fn add_manger() -> Weight {
-        0
-    }
-
-    fn remove_manger() -> Weight {
         0
     }
 
@@ -225,6 +230,8 @@ impl crate::registry::Config for Test {
     type Registrar = crate::registrar::Pallet<Test>;
 
     type ResolverId = u32;
+
+    type ManagerOrigin = ManagerOrigin;
 }
 
 parameter_types! {
@@ -261,7 +268,9 @@ impl crate::registrar::Config for Test {
 
     type NowProvider = pallet_timestamp::Pallet<Test>;
 
-    type Manager = crate::registry::Pallet<Test>;
+    type Official = crate::registry::Pallet<Test>;
+
+    type ManagerOrigin = ManagerOrigin;
 }
 
 parameter_types! {
@@ -282,9 +291,9 @@ impl crate::price_oracle::Config for Test {
 
     type ExchangeRate = TestRate;
 
-    type Manager = crate::registry::Pallet<Test>;
-
     type RateScale = RateScale;
+
+    type ManagerOrigin = ManagerOrigin;
 }
 
 pub struct TestRate;
@@ -312,7 +321,9 @@ impl crate::redeem_code::Config for Test {
 
     type Signature = sp_runtime::testing::TestSignature;
 
-    type Manager = crate::registry::Pallet<Test>;
+    type Official = crate::registry::Pallet<Test>;
+
+    type ManagerOrigin = ManagerOrigin;
 }
 
 parameter_types! {

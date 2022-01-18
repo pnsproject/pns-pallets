@@ -563,8 +563,9 @@ fn initial(
         .into_iter()
         .map(|price| price * 100)
         .collect();
-    Registry::set_official(Origin::root(), official).unwrap();
-    Registry::add_manger(Origin::signed(official), manager).unwrap();
+    ManagerOrigin::set_origin_for_root(Origin::root(), manager, true).unwrap();
+
+    Registry::set_official(Origin::signed(manager), official).unwrap();
 
     PriceOracle::set_rent_price(Origin::signed(manager), rent_prices).unwrap();
     PriceOracle::set_base_price(Origin::signed(manager), base_prices).unwrap();

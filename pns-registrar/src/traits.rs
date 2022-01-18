@@ -179,10 +179,8 @@ pub trait ExchangeRate {
     fn get_exchange_rate() -> Self::Balance;
 }
 
-pub trait Manager {
+pub trait Official {
     type AccountId;
-
-    fn ensure_manager(account: Self::AccountId) -> Result<(), frame_support::error::BadOrigin>;
 
     fn get_official_account() -> Self::AccountId;
 }

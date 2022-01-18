@@ -7,8 +7,8 @@ type BalanceOf<T> = <<T as Config>::Currency as frame_support::traits::Currency<
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::traits::{ExchangeRate, Manager};
-    use frame_support::traits::{Currency, Get};
+    use crate::traits::ExchangeRate;
+    use frame_support::traits::{Currency, EnsureOrigin, Get};
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
@@ -43,7 +43,7 @@ pub mod pallet {
 
         type WeightInfo: WeightInfo;
 
-        type Manager: Manager<AccountId = Self::AccountId>;
+        type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -102,8 +102,7 @@ pub mod pallet {
         /// Internal root method.
         #[pallet::weight(T::WeightInfo::set_price())]
         pub fn set_base_price(origin: OriginFor<T>, prices: Vec<BalanceOf<T>>) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            T::Manager::ensure_manager(who)?;
+            let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
             <BasePrice<T>>::put(&prices);
 
@@ -114,8 +113,7 @@ pub mod pallet {
         /// Internal root method.
         #[pallet::weight(T::WeightInfo::set_price())]
         pub fn set_rent_price(origin: OriginFor<T>, prices: Vec<BalanceOf<T>>) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            T::Manager::ensure_manager(who)?;
+            let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
             <RentPrice<T>>::put(&prices);
 

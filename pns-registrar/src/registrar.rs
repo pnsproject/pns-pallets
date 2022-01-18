@@ -9,10 +9,10 @@ pub mod pallet {
     use super::*;
     use sp_std::vec::Vec;
 
-    use crate::traits::{Label, Manager, PriceOracle, Registry};
+    use crate::traits::{Label, Official, PriceOracle, Registry};
     use frame_support::{
         pallet_prelude::*,
-        traits::{Currency, ExistenceRequirement, ReservableCurrency, UnixTime},
+        traits::{Currency, EnsureOrigin, ExistenceRequirement, ReservableCurrency, UnixTime},
         Twox64Concat,
     };
     use frame_system::{ensure_signed, pallet_prelude::*};
@@ -64,7 +64,9 @@ pub mod pallet {
 
         type PriceOracle: PriceOracle<Duration = Self::Moment, Balance = BalanceOf<Self>>;
 
-        type Manager: Manager<AccountId = Self::AccountId>;
+        type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
+
+        type Official: Official<AccountId = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -176,8 +178,7 @@ pub mod pallet {
         /// Only root
         #[pallet::weight(T::WeightInfo::add_reserved())]
         pub fn add_reserved(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            T::Manager::ensure_manager(who)?;
+            let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
             ReservedList::<T>::insert(node, ());
             Ok(())
@@ -186,8 +187,8 @@ pub mod pallet {
         /// Only root
         #[pallet::weight(T::WeightInfo::remove_reserved())]
         pub fn remove_reserved(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
-            let who = ensure_signed(origin)?;
-            T::Manager::ensure_manager(who)?;
+            let _who = T::ManagerOrigin::ensure_origin(origin)?;
+
             ReservedList::<T>::remove(node);
             Ok(())
         }
@@ -224,7 +225,7 @@ pub mod pallet {
             let price = T::PriceOracle::renew_price(label_len, duration)
                 .ok_or_else(|| Error::<T>::ValueOverflow)?;
 
-            let official = T::Manager::get_official_account();
+            let official = T::Official::get_official_account();
 
             let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
 
@@ -327,7 +328,7 @@ pub mod pallet {
                     .ok_or_else(|| Error::<T>::ValueOverflow)?;
                 T::Currency::transfer(
                     &caller,
-                    &T::Manager::get_official_account(),
+                    &T::Official::get_official_account(),
                     price,
                     ExistenceRequirement::KeepAlive,
                 )?;
@@ -408,7 +409,7 @@ pub mod pallet {
             T::Registry::reclaimed(&caller, node)?;
             RegistrarInfos::<T>::mutate(node, |info| -> DispatchResult {
                 if let Some(info) = info {
-                    let official = T::Manager::get_official_account();
+                    let official = T::Official::get_official_account();
                     T::Currency::unreserve(&official, info.deposit);
                     T::Currency::transfer(
                         &official,
@@ -426,7 +427,7 @@ pub mod pallet {
     }
 }
 
-use crate::traits::{IntoMoment, Label, Manager, Registry};
+use crate::traits::{IntoMoment, Label, Official, Registry};
 use frame_support::{
     dispatch::{DispatchResult, Weight},
     traits::{Currency, Get, UnixTime},
@@ -515,7 +516,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         RegistrarInfos::<T>::mutate_exists(node, |info| -> Option<()> {
             if let Some(info) = info {
                 T::Currency::transfer(
-                    &T::Manager::get_official_account(),
+                    &T::Official::get_official_account(),
                     owner,
                     info.deposit,
                     frame_support::traits::ExistenceRequirement::KeepAlive,
@@ -533,7 +534,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         duration: Self::Duration,
         label: Label<Self::Hash>,
     ) -> DispatchResult {
-        let official = T::Manager::get_official_account();
+        let official = T::Official::get_official_account();
         let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
         let expire = now + duration;
         // 防止计算结果溢出
