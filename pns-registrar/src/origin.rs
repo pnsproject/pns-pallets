@@ -25,7 +25,7 @@ pub mod pallet {
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
-        origins: Vec<T::AccountId>,
+        pub origins: Vec<T::AccountId>,
     }
 
     #[cfg(feature = "std")]
