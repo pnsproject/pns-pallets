@@ -7,7 +7,7 @@ type BalanceOf<T> = <<T as Config>::Currency as frame_support::traits::Currency<
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::traits::ExchangeRate;
+    use crate::traits::ExchangeRate as ExchangeRateT;
     use frame_support::traits::{Currency, EnsureOrigin, Get};
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
@@ -36,7 +36,7 @@ pub mod pallet {
         #[pallet::constant]
         type MaximumLength: Get<u8>;
 
-        type ExchangeRate: ExchangeRate<Balance = BalanceOf<Self>>;
+        type ExchangeRate: ExchangeRateT<Balance = BalanceOf<Self>>;
 
         #[pallet::constant]
         type RateScale: Get<BalanceOf<Self>>;
@@ -56,10 +56,14 @@ pub mod pallet {
     #[pallet::storage]
     pub type RentPrice<T: Config> = StorageValue<_, Vec<BalanceOf<T>>, ValueQuery>;
 
+    #[pallet::storage]
+    pub type ExchangeRate<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub base_prices: Vec<BalanceOf<T>>,
         pub rent_prices: Vec<BalanceOf<T>>,
+        pub init_rate: BalanceOf<T>,
     }
 
     #[cfg(feature = "std")]
@@ -68,6 +72,7 @@ pub mod pallet {
             GenesisConfig {
                 base_prices: vec![],
                 rent_prices: vec![],
+                init_rate: Default::default(),
             }
         }
     }
@@ -77,9 +82,10 @@ pub mod pallet {
         fn build(&self) {
             <BasePrice<T>>::put(&self.base_prices);
             <RentPrice<T>>::put(&self.rent_prices);
+            <ExchangeRate<T>>::put(&self.init_rate);
         }
     }
-    // TODO: 使用offchain worker去自动调节价格。
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -89,6 +95,7 @@ pub mod pallet {
         /// Rent price changed
         /// `[rent_prices]`
         RentPriceChanged(Vec<BalanceOf<T>>),
+        ExchangeRateChanged(T::AccountId, BalanceOf<T>),
     }
 
     #[pallet::error]
@@ -99,6 +106,19 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::weight(T::WeightInfo::set_price())]
+        pub fn set_exchange_rate(
+            origin: OriginFor<T>,
+            exchange_rate: BalanceOf<T>,
+        ) -> DispatchResult {
+            let who = T::ManagerOrigin::ensure_origin(origin)?;
+
+            <ExchangeRate<T>>::put(&exchange_rate);
+
+            Self::deposit_event(Event::ExchangeRateChanged(who, exchange_rate));
+
+            Ok(())
+        }
         /// Internal root method.
         #[pallet::weight(T::WeightInfo::set_price())]
         pub fn set_base_price(origin: OriginFor<T>, prices: Vec<BalanceOf<T>>) -> DispatchResult {
@@ -123,7 +143,7 @@ pub mod pallet {
         }
     }
 }
-use crate::traits::{ExchangeRate, PriceOracle};
+use crate::traits::{ExchangeRate as ExchangeRateT, PriceOracle};
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::Get;
 use sp_runtime::{
@@ -184,5 +204,13 @@ impl<T: Config> PriceOracle for Pallet<T> {
             Self::Balance::saturated_from(rent_price.checked_mul(duration)?)
                 .checked_div(&T::RateScale::get())?,
         )
+    }
+}
+
+impl<T: Config> ExchangeRateT for Pallet<T> {
+    type Balance = BalanceOf<T>;
+
+    fn get_exchange_rate() -> Self::Balance {
+        ExchangeRate::<T>::get()
     }
 }
