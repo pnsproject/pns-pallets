@@ -199,7 +199,7 @@ pub mod pallet {
         /// registering domain names greater than 10 in length.
         ///
         /// Ensure: The name must be unoccupied.
-        #[pallet::weight(T::WeightInfo::register())]
+        #[pallet::weight(T::WeightInfo::register(name.len() as u32))]
         #[frame_support::transactional]
         pub fn register(
             origin: OriginFor<T>,
@@ -301,7 +301,7 @@ pub mod pallet {
         ///  the domain and that user at renewal time, as it is the caller's responsibility to pay.
         ///
         /// Ensure: Name is within the renewable period.
-        #[pallet::weight(T::WeightInfo::renew())]
+        #[pallet::weight(T::WeightInfo::renew(name.len() as u32))]
         #[frame_support::transactional]
         pub fn renew(origin: OriginFor<T>, name: Vec<u8>, duration: T::Moment) -> DispatchResult {
             let caller = ensure_signed(origin)?;
@@ -372,7 +372,7 @@ pub mod pallet {
         /// quota of your total subdomains.
         ///
         /// Ensure: The subdomain capacity is sufficient for use.
-        #[pallet::weight(T::WeightInfo::mint_subname())]
+        #[pallet::weight(T::WeightInfo::mint_subname(data.len() as u32))]
         #[frame_support::transactional]
         pub fn mint_subname(
             origin: OriginFor<T>,
@@ -418,6 +418,7 @@ pub mod pallet {
                         ExistenceRequirement::KeepAlive,
                     )?;
                     info.deposit = Zero::zero();
+                    info.expire = Zero::zero();
                 }
                 Ok(())
             })?;
@@ -436,9 +437,9 @@ use sp_runtime::traits::Zero;
 use sp_std::vec::Vec;
 
 pub trait WeightInfo {
-    fn mint_subname() -> Weight;
-    fn register() -> Weight;
-    fn renew() -> Weight;
+    fn mint_subname(len: u32) -> Weight;
+    fn register(len: u32) -> Weight;
+    fn renew(len: u32) -> Weight;
     fn set_owner() -> Weight;
     fn reclaimed() -> Weight;
     fn add_reserved() -> Weight;

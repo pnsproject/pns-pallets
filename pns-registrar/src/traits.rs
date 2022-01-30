@@ -104,6 +104,8 @@ pub trait NFT<AccountId> {
 pub struct Label<Hash> {
     pub node: Hash,
 }
+pub const LABEL_MAX_LEN: usize = 64;
+pub const LABEL_MIN_LEN: usize = 3;
 
 impl<Hash> Label<Hash>
 where
@@ -114,7 +116,7 @@ where
             .map(|label| label.to_ascii_lowercase())
             .ok()?;
         let label_len = label.len();
-        if label_len < 3 || label_len > 64 {
+        if label_len < LABEL_MIN_LEN || label_len > LABEL_MAX_LEN {
             return None;
         }
         let mut flag = false;
@@ -160,7 +162,7 @@ pub trait Available {
 
 impl Available for usize {
     fn is_anctionable(self) -> bool {
-        self > 3 && self < 10
+        self > LABEL_MIN_LEN && self < 10
     }
 
     fn is_registrable(self) -> bool {

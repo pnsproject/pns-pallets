@@ -10,6 +10,14 @@ pub mod registry;
 pub mod traits;
 
 #[cfg(test)]
-mod mock;
+pub mod mock;
+
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
+
+#[cfg(any(test, feature = "runtime-benchmarks"))]
+mod benchmarks;
+
+#[cfg(any(test, feature = "runtime-benchmarks"))]
+#[path = "../../pns-resolvers/src/resolvers.rs"]
+pub mod resolvers;

@@ -153,7 +153,7 @@ pub mod pallet {
         /// and then calls the interface.
         ///
         /// Ensure: The length of name needs to be greater than 3.
-        #[pallet::weight(T::WeightInfo::name_redeem())]
+        #[pallet::weight(T::WeightInfo::name_redeem(name.len() as u32))]
         #[frame_support::transactional]
         pub fn name_redeem(
             origin: OriginFor<T>,
@@ -204,7 +204,7 @@ pub mod pallet {
         /// or occupied when it is called.
         ///
         /// Ensure: The length of name needs to be greater than 10.
-        #[pallet::weight(T::WeightInfo::name_redeem_any())]
+        #[pallet::weight(T::WeightInfo::name_redeem_any(name.len() as u32))]
         #[frame_support::transactional]
         pub fn name_redeem_any(
             origin: OriginFor<T>,
@@ -252,6 +252,6 @@ use frame_support::dispatch::Weight;
 
 pub trait WeightInfo {
     fn mint_redeem(len: Option<u32>) -> Weight;
-    fn name_redeem() -> Weight;
-    fn name_redeem_any() -> Weight;
+    fn name_redeem(len: u32) -> Weight;
+    fn name_redeem_any(len: u32) -> Weight;
 }

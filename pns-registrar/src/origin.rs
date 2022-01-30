@@ -55,7 +55,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(T::WeightInfo::set_origin())]
+        #[pallet::weight(T::WeightInfo::set_origin(*approved))]
         pub fn set_origin(
             origin: OriginFor<T>,
             account: <T::Lookup as StaticLookup>::Source,
@@ -74,7 +74,7 @@ pub mod pallet {
 
             Ok(())
         }
-        #[pallet::weight(T::WeightInfo::set_origin())]
+        #[pallet::weight(T::WeightInfo::set_origin(*approved))]
         pub fn set_origin_for_root(
             origin: OriginFor<T>,
             account: <T::Lookup as StaticLookup>::Source,
@@ -109,10 +109,10 @@ impl<T: Config> EnsureOrigin<T::Origin> for Pallet<T> {
 
     #[cfg(feature = "runtime-benchmarks")]
     fn successful_origin() -> T::Origin {
-        O::from(RawOrigin::Signed(Default::default()))
+        T::Origin::from(RawOrigin::Signed(Default::default()))
     }
 }
 
 pub trait WeightInfo {
-    fn set_origin() -> Weight;
+    fn set_origin(approved: bool) -> Weight;
 }

@@ -106,7 +106,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(T::WeightInfo::set_price())]
+        #[pallet::weight(T::WeightInfo::set_exchange_rate())]
         pub fn set_exchange_rate(
             origin: OriginFor<T>,
             exchange_rate: BalanceOf<T>,
@@ -120,7 +120,7 @@ pub mod pallet {
             Ok(())
         }
         /// Internal root method.
-        #[pallet::weight(T::WeightInfo::set_price())]
+        #[pallet::weight(T::WeightInfo::set_base_price(prices.len() as u32))]
         pub fn set_base_price(origin: OriginFor<T>, prices: Vec<BalanceOf<T>>) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
@@ -131,7 +131,7 @@ pub mod pallet {
             Ok(())
         }
         /// Internal root method.
-        #[pallet::weight(T::WeightInfo::set_price())]
+        #[pallet::weight(T::WeightInfo::set_rent_price(prices.len() as u32))]
         pub fn set_rent_price(origin: OriginFor<T>, prices: Vec<BalanceOf<T>>) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
@@ -152,7 +152,9 @@ use sp_runtime::{
 };
 
 pub trait WeightInfo {
-    fn set_price() -> Weight;
+    fn set_exchange_rate() -> Weight;
+    fn set_base_price(len: u32) -> Weight;
+    fn set_rent_price(len: u32) -> Weight;
 }
 
 impl<T: Config> PriceOracle for Pallet<T> {
@@ -170,7 +172,7 @@ impl<T: Config> PriceOracle for Pallet<T> {
     fn register_fee(name_len: usize) -> Option<Self::Balance> {
         let base_prices = BasePrice::<T>::get();
         let prices_len = base_prices.len();
-        let len = if name_len > prices_len {
+        let len = if name_len < prices_len {
             name_len
         } else {
             prices_len
@@ -191,7 +193,7 @@ impl<T: Config> PriceOracle for Pallet<T> {
     fn renew_price(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
         let rent_prices = RentPrice::<T>::get();
         let prices_len = rent_prices.len();
-        let len = if name_len > prices_len {
+        let len = if name_len < prices_len {
             name_len
         } else {
             prices_len

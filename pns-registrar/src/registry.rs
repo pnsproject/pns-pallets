@@ -235,7 +235,10 @@ pub mod pallet {
             }
         }
 
-        #[frame_support::require_transactional]
+        #[cfg_attr(
+            not(feature = "runtime-benchmarks"),
+            frame_support::require_transactional
+        )]
         pub(crate) fn _mint_subname(
             owner: &T::AccountId,
             metadata: Vec<u8>,
@@ -338,7 +341,10 @@ pub mod pallet {
                 }
             })
         }
-        #[frame_support::require_transactional]
+        #[cfg_attr(
+            not(feature = "runtime-benchmarks"),
+            frame_support::require_transactional
+        )]
         pub fn do_reclaimed(caller: &T::AccountId, token: T::TokenId) -> DispatchResult {
             let class_id = T::ClassId::zero();
             let token_info =
@@ -373,7 +379,10 @@ pub mod pallet {
             Ok(())
         }
         /// Ensure `from` is a caller.
-        #[frame_support::require_transactional]
+        #[cfg_attr(
+            not(feature = "runtime-benchmarks"),
+            frame_support::require_transactional
+        )]
         pub fn do_transfer(
             from: &T::AccountId,
             to: &T::AccountId,
@@ -449,7 +458,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Sharing your account permissions with others is a discreet operation,
         /// and when methods such as `reclaim` are called, the deposit is returned to the caller.
-        #[pallet::weight(T::WeightInfo::approval_for_all())]
+        #[pallet::weight(T::WeightInfo::approval_for_all(*approved))]
         pub fn approval_for_all(
             origin: OriginFor<T>,
             operator: <T::Lookup as StaticLookup>::Source,
@@ -498,7 +507,7 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(T::WeightInfo::approve())]
+        #[pallet::weight(T::WeightInfo::approve(*approved))]
         pub fn approve(
             origin: OriginFor<T>,
             to: T::AccountId,
@@ -537,11 +546,11 @@ use frame_support::{
 };
 
 pub trait WeightInfo {
-    fn approval_for_all() -> Weight;
+    fn approval_for_all(approved: bool) -> Weight;
     fn set_resolver() -> Weight;
     fn destroy() -> Weight;
     fn set_official() -> Weight;
-    fn approve() -> Weight;
+    fn approve(approved: bool) -> Weight;
 }
 
 impl<T: pallet::Config> crate::traits::NFT<T::AccountId> for pallet::Pallet<T> {
@@ -558,7 +567,10 @@ impl<T: pallet::Config> crate::traits::NFT<T::AccountId> for pallet::Pallet<T> {
     fn owner(token: (Self::ClassId, Self::TokenId)) -> Option<T::AccountId> {
         crate::nft::Pallet::<T>::tokens(token.0, token.1).map(|t| t.owner)
     }
-    #[frame_support::require_transactional]
+    #[cfg_attr(
+        not(feature = "runtime-benchmarks"),
+        frame_support::require_transactional
+    )]
     fn transfer(
         from: &T::AccountId,
         to: &T::AccountId,
@@ -575,7 +587,10 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
     type AccountId = T::AccountId;
     type Hash = T::Hash;
 
-    #[frame_support::require_transactional]
+    #[cfg_attr(
+        not(feature = "runtime-benchmarks"),
+        frame_support::require_transactional
+    )]
     fn mint_subname(
         node_owner: &Self::AccountId,
         node: Self::Hash,

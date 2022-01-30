@@ -29,7 +29,7 @@ frame_support::construct_runtime!(
         Registrar: crate::registrar,
         Registry: crate::registry,
         ManagerOrigin: crate::origin,
-        Resolvers: pns_resolvers,
+        Resolvers: crate::resolvers,
         Nft: crate::nft,
         Balances: pallet_balances,
         Timestamp: pallet_timestamp,
@@ -37,7 +37,7 @@ frame_support::construct_runtime!(
     }
 );
 
-impl pns_resolvers::Config for Test {
+impl crate::resolvers::Config for Test {
     type Event = Event;
 
     type WeightInfo = TestWeightInfo;
@@ -58,16 +58,16 @@ impl crate::origin::Config for Test {
 pub struct TestChecker;
 
 impl crate::origin::WeightInfo for TestWeightInfo {
-    fn set_origin() -> Weight {
+    fn set_origin(_approved: bool) -> Weight {
         0
     }
 }
 
-impl pns_resolvers::traits::RegistryChecker for TestChecker {
+impl crate::resolvers::RegistryChecker for TestChecker {
     type Hash = Hash;
 
     type AccountId = AccountId;
-    // TODO: 跨链验证
+
     fn check_node_useable(node: Self::Hash, owner: &Self::AccountId) -> bool {
         use crate::traits::Registrar as _;
         crate::nft::TokensByOwner::<Test>::contains_key((owner, 0, node))
@@ -106,17 +106,110 @@ impl frame_system::Config for Test {
     type OnSetCode = ();
 }
 
+pub const OFFICIAL_ACCOUNT: AccountId = 0;
+pub const MANAGER_ACCOUNT: AccountId = 1;
+
+pub const POOR_ACCOUNT: AccountId = 2;
+pub const RICH_ACCOUNT: AccountId = 4;
+pub const MONEY_ACCOUNT: AccountId = 5;
+
+pub const BASE: Balance = 1_000_000_000_000;
+
+pub fn get_cupnfishu_node() -> Hash {
+    let base_node = sp_core::convert_hash::<sp_core::H256, [u8; 32]>(
+        &sp_core::hashing::keccak_256("dot".as_bytes()),
+    );
+    crate::traits::Label::<Hash>::new("cupnfishu".as_bytes())
+        .unwrap()
+        .0
+        .encode_with_basenode(base_node)
+}
+
 // Build genesis storage according to the mock Test.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    frame_system::GenesisConfig::default()
+    let mut genesis_storage = frame_system::GenesisConfig::default()
         .build_storage::<Test>()
-        .unwrap()
-        .into()
+        .unwrap();
+
+    let registry_genesis = crate::registry::GenesisConfig::<Test> {
+        official: Some(OFFICIAL_ACCOUNT),
+        ..Default::default()
+    };
+    <crate::registry::GenesisConfig<Test> as frame_support::traits::GenesisBuild<Test>>::assimilate_storage(&registry_genesis,&mut genesis_storage).unwrap();
+
+    let origin_genesis = crate::origin::GenesisConfig::<Test> {
+        origins: vec![OFFICIAL_ACCOUNT, MANAGER_ACCOUNT],
+    };
+
+    <crate::origin::GenesisConfig<Test> as frame_support::traits::GenesisBuild<Test>>::assimilate_storage(&origin_genesis,&mut genesis_storage).unwrap();
+
+    let nft_genesis = crate::nft::GenesisConfig::<Test> {
+        tokens: vec![(
+            OFFICIAL_ACCOUNT,
+            Default::default(),
+            (),
+            vec![
+                (
+                    OFFICIAL_ACCOUNT,
+                    Default::default(),
+                    Default::default(),
+                    sp_core::convert_hash::<sp_core::H256, [u8; 32]>(
+                        &sp_core::hashing::keccak_256("dot".as_bytes()),
+                    ),
+                ),
+                (
+                    MANAGER_ACCOUNT,
+                    Default::default(),
+                    Default::default(),
+                    get_cupnfishu_node(),
+                ),
+            ],
+        )],
+    };
+
+    <crate::nft::GenesisConfig<Test> as frame_support::traits::GenesisBuild<Test>>::assimilate_storage(&nft_genesis,&mut genesis_storage).unwrap();
+
+    let balances_genesis = pallet_balances::GenesisConfig::<Test> {
+        balances: vec![
+            (RICH_ACCOUNT, 500_000_000_000_000),
+            (MONEY_ACCOUNT, 500_000_000_000_000),
+        ],
+    };
+
+    <pallet_balances::GenesisConfig<Test> as frame_support::traits::GenesisBuild<Test>>::assimilate_storage(&balances_genesis,&mut genesis_storage).unwrap();
+
+    let price_oracle_genesis = crate::price_oracle::GenesisConfig::<Test> {
+        base_prices: vec![12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+            .into_iter()
+            .map(|price| price * 100)
+            .collect(),
+        rent_prices: vec![9, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1],
+        init_rate: BASE,
+    };
+
+    <crate::price_oracle::GenesisConfig<Test> as frame_support::traits::GenesisBuild<Test>>::assimilate_storage(&price_oracle_genesis,&mut genesis_storage).unwrap();
+
+    let registrar_genesis = crate::registrar::GenesisConfig::<Test> {
+        infos: vec![(
+            get_cupnfishu_node(),
+            crate::registrar::RegistrarInfo {
+                expire: 996,
+                capacity: 996,
+                deposit: 996,
+                register_fee: 996,
+            },
+        )],
+        reserved_list: Default::default(),
+    };
+
+    <crate::registrar::GenesisConfig<Test> as frame_support::traits::GenesisBuild<Test>>::assimilate_storage(&registrar_genesis,&mut genesis_storage).unwrap();
+
+    genesis_storage.into()
 }
 
 pub struct TestWeightInfo;
 
-impl pns_resolvers::WeightInfo for TestWeightInfo {
+impl crate::resolvers::WeightInfo for TestWeightInfo {
     fn set_text(content_len: usize) -> Weight {
         10 * content_len as Weight + 0
     }
@@ -127,7 +220,7 @@ impl pns_resolvers::WeightInfo for TestWeightInfo {
 }
 
 impl crate::registry::WeightInfo for TestWeightInfo {
-    fn approval_for_all() -> Weight {
+    fn approval_for_all(_approved: bool) -> Weight {
         0
     }
 
@@ -143,21 +236,21 @@ impl crate::registry::WeightInfo for TestWeightInfo {
         0
     }
 
-    fn approve() -> Weight {
+    fn approve(_approved: bool) -> Weight {
         0
     }
 }
 
 impl crate::registrar::WeightInfo for TestWeightInfo {
-    fn mint_subname() -> Weight {
+    fn mint_subname(_len: u32) -> Weight {
         0
     }
 
-    fn register() -> Weight {
+    fn register(_len: u32) -> Weight {
         0
     }
 
-    fn renew() -> Weight {
+    fn renew(_len: u32) -> Weight {
         0
     }
 
@@ -187,17 +280,25 @@ impl crate::redeem_code::WeightInfo for TestWeightInfo {
         }
     }
 
-    fn name_redeem() -> Weight {
+    fn name_redeem(_len: u32) -> Weight {
         0
     }
 
-    fn name_redeem_any() -> Weight {
+    fn name_redeem_any(_len: u32) -> Weight {
         0
     }
 }
 
 impl crate::price_oracle::WeightInfo for TestWeightInfo {
-    fn set_price() -> Weight {
+    fn set_exchange_rate() -> Weight {
+        0
+    }
+
+    fn set_base_price(_len: u32) -> Weight {
+        0
+    }
+
+    fn set_rent_price(_len: u32) -> Weight {
         0
     }
 }
