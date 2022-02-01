@@ -74,6 +74,7 @@ where
 
 mod registry {
     use super::{account_to_source, get_manager};
+    #[cfg(test)]
     use crate::mock::Test;
     use crate::{
         registry::{Call, Config, Pallet},
@@ -177,6 +178,7 @@ mod registry {
 
 mod registrar {
     use super::{account_to_source, create_caller, get_manager, get_rand_name, name_to_node};
+    #[cfg(test)]
     use crate::mock::Test;
     use crate::{
         registrar::{Call, Config, Pallet},
@@ -284,6 +286,7 @@ mod registrar {
 
 mod redeem_code {
     use super::{get_manager, get_rand_name, name_to_node, poor_account};
+    #[cfg(test)]
     use crate::mock::Test;
     use crate::traits::Registrar;
     use crate::{
@@ -346,6 +349,7 @@ mod redeem_code {
 
 mod price_oracle {
     use super::get_manager;
+    #[cfg(test)]
     use crate::mock::Test;
     use crate::{
         price_oracle::{Call, Config, Pallet},
@@ -378,6 +382,7 @@ mod price_oracle {
 
 mod origin {
     use super::{account_to_source, get_manager, poor_account};
+    #[cfg(test)]
     use crate::mock::Test;
     use crate::origin::{Call, Config, Pallet};
     use frame_benchmarking::benchmarks;
@@ -412,6 +417,7 @@ mod origin {
 
 mod resolvers {
     use super::get_cupnfishu_node;
+    #[cfg(test)]
     use crate::mock::Test;
     use crate::resolvers::{AddressKind, Call, Config, Pallet, TextKind};
     use frame_benchmarking::benchmarks;
