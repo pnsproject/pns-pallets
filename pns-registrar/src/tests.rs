@@ -1,8 +1,8 @@
+use crate::resolvers::{AddressKind, TextKind};
 use crate::*;
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok};
 use mock::*;
-use crate::resolvers::{AddressKind, TextKind};
 use sp_runtime::testing::TestSignature;
 use sp_runtime::MultiAddress;
 use traits::Label;

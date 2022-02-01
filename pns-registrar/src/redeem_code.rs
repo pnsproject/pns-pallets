@@ -35,9 +35,6 @@ pub mod pallet {
             + AtLeast32BitUnsigned
             + MaybeSerializeDeserialize;
 
-        #[pallet::constant]
-        type BaseNode: Get<Self::Hash>;
-
         type Public: TypeInfo
             + Decode
             + Encode
@@ -183,7 +180,7 @@ pub mod pallet {
                 Error::<T>::InvalidSignature
             );
 
-            let node = label.encode_with_basenode(T::BaseNode::get());
+            let node = label.encode_with_basenode(T::Registrar::basenode());
 
             T::Registrar::for_redeem_code(name, owner.clone(), duration, label)?;
 
@@ -235,7 +232,7 @@ pub mod pallet {
                 Error::<T>::InvalidSignature
             );
 
-            let node = label.encode_with_basenode(T::BaseNode::get());
+            let node = label.encode_with_basenode(T::Registrar::basenode());
 
             T::Registrar::for_redeem_code(name, owner.clone(), duration, label)?;
 

@@ -583,6 +583,10 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
 
         Ok(())
     }
+
+    fn basenode() -> Self::Hash {
+        T::BaseNode::get()
+    }
 }
 use sp_runtime::traits::SaturatedConversion;
 

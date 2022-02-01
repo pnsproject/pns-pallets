@@ -24,6 +24,7 @@ pub trait Registrar {
         duration: Self::Duration,
         label: Label<Self::Hash>,
     ) -> DispatchResult;
+    fn basenode() -> Self::Hash;
     // fn for_auction_set_expires(
     // 	node: Self::Hash,
     // 	deposit: Self::Balance,

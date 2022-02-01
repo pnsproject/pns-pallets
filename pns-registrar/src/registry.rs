@@ -314,7 +314,7 @@ pub mod pallet {
                 Err(Error::<T>::NotExist.into())
             }
         }
-        fn add_children(node: T::Hash, class_id: T::ClassId) -> DispatchResult {
+        pub(crate) fn add_children(node: T::Hash, class_id: T::ClassId) -> DispatchResult {
             nft::Tokens::<T>::mutate(class_id, node, |data| -> DispatchResult {
                 if let Some(info) = data {
                     let node_children = info.data.children;
@@ -499,10 +499,18 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::set_official())]
+        #[frame_support::transactional]
         pub fn set_official(origin: OriginFor<T>, official: T::AccountId) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
+            let old_official = Official::<T>::take();
 
-            Official::<T>::put(official);
+            Official::<T>::put(&official);
+
+            nft::Pallet::<T>::transfer(
+                &old_official,
+                &official,
+                (T::ClassId::zero(), T::Registrar::basenode()),
+            )?;
 
             Ok(())
         }

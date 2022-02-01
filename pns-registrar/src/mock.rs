@@ -115,16 +115,6 @@ pub const MONEY_ACCOUNT: AccountId = 5;
 
 pub const BASE: Balance = 1_000_000_000_000;
 
-pub fn get_cupnfishu_node() -> Hash {
-    let base_node = sp_core::convert_hash::<sp_core::H256, [u8; 32]>(
-        &sp_core::hashing::keccak_256("dot".as_bytes()),
-    );
-    crate::traits::Label::<Hash>::new("cupnfishu".as_bytes())
-        .unwrap()
-        .0
-        .encode_with_basenode(base_node)
-}
-
 // Build genesis storage according to the mock Test.
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let mut genesis_storage = frame_system::GenesisConfig::default()
@@ -148,22 +138,14 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
             OFFICIAL_ACCOUNT,
             Default::default(),
             (),
-            vec![
-                (
-                    OFFICIAL_ACCOUNT,
-                    Default::default(),
-                    Default::default(),
-                    sp_core::convert_hash::<sp_core::H256, [u8; 32]>(
-                        &sp_core::hashing::keccak_256("dot".as_bytes()),
-                    ),
-                ),
-                (
-                    MANAGER_ACCOUNT,
-                    Default::default(),
-                    Default::default(),
-                    get_cupnfishu_node(),
-                ),
-            ],
+            vec![(
+                OFFICIAL_ACCOUNT,
+                Default::default(),
+                Default::default(),
+                sp_core::convert_hash::<sp_core::H256, [u8; 32]>(&sp_core::hashing::keccak_256(
+                    "dot".as_bytes(),
+                )),
+            )],
         )],
     };
 
@@ -190,15 +172,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     <crate::price_oracle::GenesisConfig<Test> as frame_support::traits::GenesisBuild<Test>>::assimilate_storage(&price_oracle_genesis,&mut genesis_storage).unwrap();
 
     let registrar_genesis = crate::registrar::GenesisConfig::<Test> {
-        infos: vec![(
-            get_cupnfishu_node(),
-            crate::registrar::RegistrarInfo {
-                expire: 996,
-                capacity: 996,
-                deposit: 996,
-                register_fee: 996,
-            },
-        )],
+        infos: Default::default(),
         reserved_list: Default::default(),
     };
 
@@ -413,8 +387,6 @@ impl crate::redeem_code::Config for Test {
     type WeightInfo = TestWeightInfo;
 
     type Registrar = crate::registrar::Pallet<Test>;
-
-    type BaseNode = BaseNode;
 
     type Moment = Moment;
 
