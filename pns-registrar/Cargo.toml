@@ -92,6 +92,9 @@ branch = "polkadot-v0.9.13"
 git = 'https://github.com/paritytech/substrate.git'
 branch = "polkadot-v0.9.13"
 
+[dev-dependencies.pns-resolvers]
+path = "../pns-resolvers"
+
 [features]
 default = ['std']
 runtime-benchmarks = [

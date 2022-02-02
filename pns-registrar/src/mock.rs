@@ -29,7 +29,7 @@ frame_support::construct_runtime!(
         Registrar: crate::registrar,
         Registry: crate::registry,
         ManagerOrigin: crate::origin,
-        Resolvers: crate::resolvers,
+        Resolvers: pns_resolvers::resolvers,
         Nft: crate::nft,
         Balances: pallet_balances,
         Timestamp: pallet_timestamp,
@@ -37,7 +37,7 @@ frame_support::construct_runtime!(
     }
 );
 
-impl crate::resolvers::Config for Test {
+impl pns_resolvers::resolvers::Config for Test {
     type Event = Event;
 
     type WeightInfo = TestWeightInfo;
@@ -63,7 +63,7 @@ impl crate::origin::WeightInfo for TestWeightInfo {
     }
 }
 
-impl crate::resolvers::RegistryChecker for TestChecker {
+impl pns_resolvers::resolvers::RegistryChecker for TestChecker {
     type Hash = Hash;
 
     type AccountId = AccountId;
@@ -183,7 +183,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 pub struct TestWeightInfo;
 
-impl crate::resolvers::WeightInfo for TestWeightInfo {
+impl pns_resolvers::resolvers::WeightInfo for TestWeightInfo {
     fn set_text(content_len: usize) -> Weight {
         10 * content_len as Weight + 0
     }

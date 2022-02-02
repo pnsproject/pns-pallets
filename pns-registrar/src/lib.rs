@@ -20,7 +20,3 @@ pub(crate) mod tests;
 
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod benchmarks;
-
-#[cfg(any(test, feature = "runtime-benchmarks"))]
-#[path = "../../pns-resolvers/src/resolvers.rs"]
-pub mod resolvers;

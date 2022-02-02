@@ -71,6 +71,11 @@ default-features = false
 version = '1.0.131'
 features = ["derive", "alloc"]
 
+[dependencies.pns-registrar]
+path = "../pns-registrar"
+default-features = false
+features = ["runtime-benchmarks"]
+optional = true
 
 [features]
 default = ['std']
@@ -78,6 +83,7 @@ runtime-benchmarks = [
     'frame-benchmarking',
     'frame-support/runtime-benchmarks',
     'frame-system/runtime-benchmarks',
+    'pns-registrar'
 ]
 std = [
     'codec/std',

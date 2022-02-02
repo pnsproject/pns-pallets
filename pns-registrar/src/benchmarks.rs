@@ -2,7 +2,6 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use frame_benchmarking::account;
-use frame_support::traits::Get;
 use sp_runtime::traits::StaticLookup;
 use sp_std::vec::Vec;
 pub const SEED: u32 = 996;
@@ -46,30 +45,6 @@ where
 pub fn poor_account<T: frame_system::Config>(idx: u32) -> T::AccountId {
     let caller: T::AccountId = account("caller", idx, SEED);
     caller
-}
-
-use frame_system::RawOrigin;
-use sp_runtime::DispatchError;
-
-pub fn get_cupnfishu_node<T>() -> Result<(T::AccountId, T::Hash), DispatchError>
-where
-    T: crate::registrar::Config + crate::origin::Config,
-{
-    let owner = create_caller::<T, T::Currency>(888);
-    let owner_clone = owner.clone();
-    crate::registrar::Pallet::<T>::register(
-        RawOrigin::Signed(owner).into(),
-        b"cupnfishuuu".to_vec(),
-        account_to_source::<T>(owner_clone.clone()),
-        T::MinRegistrationDuration::get(),
-    )?;
-    Ok((
-        owner_clone,
-        crate::traits::Label::<T::Hash>::new("cupnfishuuu".as_bytes())
-            .unwrap()
-            .0
-            .encode_with_basenode(T::BaseNode::get()),
-    ))
 }
 
 mod registry {
@@ -414,33 +389,5 @@ mod origin {
         }:set_origin_for_root(RawOrigin::Root,account_to_source::<T>(account),false)
 
         impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), Test);
-    }
-}
-
-mod resolvers {
-    use super::get_cupnfishu_node;
-    #[cfg(test)]
-    use crate::mock::Test;
-    use crate::resolvers::{AddressKind, Call, Config, Pallet, TextKind};
-    use frame_benchmarking::benchmarks;
-    use frame_system::RawOrigin;
-
-    benchmarks! {
-        where_clause {
-            where
-            T: crate::origin::Config + crate::registrar::Config,
-            T::DomainHash: From<T::Hash>,
-        }
-
-        set_account {
-            let (owner,node) = get_cupnfishu_node::<T>()?;
-        }: _(RawOrigin::Signed(owner),node.into(),AddressKind::Substrate,Default::default())
-
-        set_text {
-            let l in 0..10_000;
-            let (owner,node) = get_cupnfishu_node::<T>()?;
-        }: _(RawOrigin::Signed(owner), node.into(),TextKind::Email,sp_std::vec![7;l as usize])
-
-        impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(),Test);
     }
 }

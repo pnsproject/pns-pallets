@@ -7,7 +7,6 @@ pub mod pallet {
     use frame_support::traits::EnsureOrigin;
     use frame_system::pallet_prelude::*;
     use sp_runtime::traits::StaticLookup;
-    use sp_std::vec::Vec;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -25,14 +24,14 @@ pub mod pallet {
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
-        pub origins: Vec<T::AccountId>,
+        pub origins: sp_std::vec::Vec<T::AccountId>,
     }
 
     #[cfg(feature = "std")]
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             Self {
-                origins: Vec::with_capacity(0),
+                origins: sp_std::vec::Vec::with_capacity(0),
             }
         }
     }
