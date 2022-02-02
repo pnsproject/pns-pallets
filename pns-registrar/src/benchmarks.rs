@@ -4,11 +4,11 @@
 use frame_benchmarking::account;
 use frame_support::traits::Get;
 use sp_runtime::traits::StaticLookup;
-
+use sp_std::vec::Vec;
 pub const SEED: u32 = 996;
 
 pub fn get_rand_name(len: usize) -> Vec<u8> {
-    let mut name = "cupnfishxx".to_string();
+    let mut name = "cupnfishxx".to_ascii_lowercase();
     for _ in 10..len {
         name.push_str("x");
     }
@@ -182,11 +182,13 @@ mod registrar {
     use crate::mock::Test;
     use crate::{
         registrar::{Call, Config, Pallet},
-        traits::{Label, Registrar, LABEL_MAX_LEN},
+        traits::{Label, Registrar, LABEL_MAX_LEN, LABEL_MIN_LEN},
     };
     use frame_benchmarking::benchmarks;
     use frame_support::traits::{Currency, Get};
     use frame_system::RawOrigin;
+    use sp_std::vec::Vec;
+
     fn get_rand_node<T: Config>(seed: u32) -> T::Hash {
         sp_core::convert_hash::<T::Hash, [u8; 32]>(&sp_core::hashing::keccak_256(
             format!("rand{seed}").as_bytes(),
@@ -194,8 +196,8 @@ mod registrar {
     }
 
     fn get_subname(len: usize) -> Vec<u8> {
-        let mut name = "abc".to_string();
-        for _ in 10..len {
+        let mut name = "abc".to_ascii_lowercase();
+        for _ in LABEL_MIN_LEN..len {
             name.push_str("x");
         }
         name.into_bytes()
@@ -260,7 +262,7 @@ mod registrar {
 
 
         mint_subname {
-            let l in 0..LABEL_MAX_LEN as u32;
+            let l in  0..(LABEL_MAX_LEN as u32);
             let name = get_rand_name(15);
             let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get()).into();
             let rich_account = create_caller::<T,T::Currency>(8);
@@ -357,6 +359,7 @@ mod price_oracle {
     };
     use frame_benchmarking::benchmarks;
     use frame_system::RawOrigin;
+    use sp_std::vec;
 
     benchmarks! {
         where_clause {
@@ -422,6 +425,8 @@ mod resolvers {
     use crate::resolvers::{AddressKind, Call, Config, Pallet, TextKind};
     use frame_benchmarking::benchmarks;
     use frame_system::RawOrigin;
+    use sp_std::vec;
+
     benchmarks! {
         where_clause {
             where
