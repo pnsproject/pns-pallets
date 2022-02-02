@@ -274,13 +274,14 @@ mod redeem_code {
     use frame_benchmarking::benchmarks;
     use frame_system::RawOrigin;
     use sp_runtime::traits::IdentifyAccount;
+    use sp_runtime::BoundToRuntimeAppPublic;
     use sp_runtime::RuntimeAppPublic;
 
     benchmarks! {
         where_clause {
             where
             T: crate::origin::Config + crate::registry::Config,
-            T::Public: sp_runtime::RuntimeAppPublic<Signature = T::Signature>,
+            <T::BoundToRuntimePublic as BoundToRuntimeAppPublic>::Public: sp_runtime::RuntimeAppPublic<Signature = T::Signature> + sp_runtime::traits::IdentifyAccount<AccountId = T::AccountId>,
         }
         mint_redeem {
             let l in 1..10_000;
@@ -294,7 +295,7 @@ mod redeem_code {
             let label_node = label.node;
             let duration = <T as crate::redeem_code::pallet::Config>::Moment::from(24*60*60*365 as u32);
             let msg = (label_node, duration, nouce).encode();
-            let public = T::Public::generate_pair(None);
+            let public = <T::BoundToRuntimePublic as BoundToRuntimeAppPublic>::Public::generate_pair(None);
             let signature = public.sign(&msg).unwrap();
             let official = public.into_account();
             crate::registry::Pallet::<T>::set_official(RawOrigin::Signed(get_manager::<T>()).into(),official)?;
@@ -310,7 +311,7 @@ mod redeem_code {
             let name = get_rand_name(l as usize);
             let duration = <T as crate::redeem_code::pallet::Config>::Moment::from(24*60*60*365 as u32);
             let msg = (duration, nouce).encode();
-            let public = T::Public::generate_pair(None);
+            let public = <T::BoundToRuntimePublic as BoundToRuntimeAppPublic>::Public::generate_pair(None);
             let signature = public.sign(&msg).unwrap();
             let official = public.into_account();
             crate::registry::Pallet::<T>::set_official(RawOrigin::Signed(get_manager::<T>()).into(),official)?;

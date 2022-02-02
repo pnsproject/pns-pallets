@@ -52,6 +52,9 @@ pub mod pallet {
             + core::fmt::Debug
             + TypeInfo;
 
+        #[cfg(feature = "runtime-benchmarks")]
+        type BoundToRuntimePublic: sp_runtime::BoundToRuntimeAppPublic;
+
         type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
 
         type Official: Official<AccountId = Self::AccountId>;
