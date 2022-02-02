@@ -1,5 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "runtime-benchmarks")]
+extern crate alloc;
+
 //pub mod auction;
 pub mod nft;
 pub mod origin;

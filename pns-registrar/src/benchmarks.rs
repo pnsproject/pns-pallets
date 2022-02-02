@@ -92,7 +92,7 @@ mod registry {
         index: u32,
     ) -> Result<(T::AccountId, T::Hash), DispatchError> {
         let owner = account::<T::AccountId>(name, index, SEED);
-        let label = Label::<T::Hash>::new(format!("{name}{index}").as_bytes())
+        let label = Label::<T::Hash>::new(alloc::format!("{name}{index}").as_bytes())
             .unwrap()
             .0;
         let class_id = T::ClassId::zero();
@@ -190,9 +190,9 @@ mod registrar {
     use sp_std::vec::Vec;
 
     fn get_rand_node<T: Config>(seed: u32) -> T::Hash {
-        sp_core::convert_hash::<T::Hash, [u8; 32]>(&sp_core::hashing::keccak_256(
-            format!("rand{seed}").as_bytes(),
-        ))
+        let name = alloc::format!("rand{seed}").as_bytes();
+        let label = Label::<T::Hash>::new(name).unwrap().0;
+        label.node
     }
 
     fn get_subname(len: usize) -> Vec<u8> {
@@ -359,7 +359,6 @@ mod price_oracle {
     };
     use frame_benchmarking::benchmarks;
     use frame_system::RawOrigin;
-    use sp_std::vec;
 
     benchmarks! {
         where_clause {
@@ -373,11 +372,11 @@ mod price_oracle {
 
         set_base_price {
             let l in 0..LABEL_MAX_LEN as u32;
-        }:_(RawOrigin::Signed(get_manager::<T>()),vec![996_u32.into();l as usize])
+        }:_(RawOrigin::Signed(get_manager::<T>()),sp_std::vec![996_u32.into();l as usize])
 
         set_rent_price {
             let l in 0..LABEL_MAX_LEN as u32;
-        }:_(RawOrigin::Signed(get_manager::<T>()),vec![996_u32.into();l as usize])
+        }:_(RawOrigin::Signed(get_manager::<T>()),sp_std::vec![996_u32.into();l as usize])
 
         impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), Test);
     }
@@ -425,7 +424,6 @@ mod resolvers {
     use crate::resolvers::{AddressKind, Call, Config, Pallet, TextKind};
     use frame_benchmarking::benchmarks;
     use frame_system::RawOrigin;
-    use sp_std::vec;
 
     benchmarks! {
         where_clause {
@@ -441,7 +439,7 @@ mod resolvers {
         set_text {
             let l in 0..10_000;
             let (owner,node) = get_cupnfishu_node::<T>()?;
-        }: _(RawOrigin::Signed(owner), node.into(),TextKind::Email,vec![7;l as usize])
+        }: _(RawOrigin::Signed(owner), node.into(),TextKind::Email,sp_std::vec![7;l as usize])
 
         impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(),Test);
     }
