@@ -190,8 +190,8 @@ mod registrar {
     use sp_std::vec::Vec;
 
     fn get_rand_node<T: Config>(seed: u32) -> T::Hash {
-        let name = alloc::format!("rand{seed}").as_bytes();
-        let label = Label::<T::Hash>::new(name).unwrap().0;
+        let name = alloc::format!("rand{seed}");
+        let label = Label::<T::Hash>::new(name.as_bytes()).unwrap().0;
         label.node
     }
 
