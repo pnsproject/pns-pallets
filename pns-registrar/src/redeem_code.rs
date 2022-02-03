@@ -1,5 +1,49 @@
 pub use pallet::*;
 
+#[cfg(any(test, feature = "runtime-benchmarks"))]
+pub mod crypto {
+    use sp_core::crypto::KeyTypeId;
+
+    pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"code");
+
+    use sp_core::sr25519::Signature as Sr25519Signature;
+    use sp_runtime::{
+        app_crypto::{app_crypto, sr25519},
+        traits::Verify,
+        MultiSignature, MultiSigner,
+    };
+    app_crypto!(sr25519, KEY_TYPE);
+
+    pub struct BenchAuthId;
+
+    impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for BenchAuthId {
+        type RuntimeAppPublic = Public;
+        type GenericSignature = sp_core::sr25519::Signature;
+        type GenericPublic = sp_core::sr25519::Public;
+    }
+
+    // implemented for mock runtime in test
+    impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature>
+        for BenchAuthId
+    {
+        type RuntimeAppPublic = Public;
+        type GenericSignature = sp_core::sr25519::Signature;
+        type GenericPublic = sp_core::sr25519::Public;
+    }
+
+    #[cfg(test)]
+    impl
+        frame_system::offchain::AppCrypto<
+            <sp_runtime::testing::TestSignature as Verify>::Signer,
+            sp_runtime::testing::TestSignature,
+        > for BenchAuthId
+    {
+        type RuntimeAppPublic = sp_runtime::testing::UintAuthorityId;
+        type GenericSignature = sp_runtime::testing::TestSignature;
+        type GenericPublic = sp_runtime::testing::UintAuthorityId;
+    }
+}
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
@@ -51,9 +95,6 @@ pub mod pallet {
             + Eq
             + core::fmt::Debug
             + TypeInfo;
-
-        #[cfg(feature = "runtime-benchmarks")]
-        type BoundToRuntimePublic: sp_runtime::BoundToRuntimeAppPublic;
 
         type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
 

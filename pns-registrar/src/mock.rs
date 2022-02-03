@@ -394,9 +394,6 @@ impl crate::redeem_code::Config for Test {
 
     type Signature = sp_runtime::testing::TestSignature;
 
-    #[cfg(feature = "runtime-benchmarks")]
-    type BoundToRuntimePublic = sp_runtime::testing::UintAuthorityId;
-
     type Official = crate::registry::Pallet<Test>;
 
     type ManagerOrigin = ManagerOrigin;
