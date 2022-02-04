@@ -223,7 +223,7 @@ mod registrar {
             let clone_rich = rich_account.clone();
             T::Currency::deposit_creating(&clone_rich,u32::MAX.into());
             Pallet::<T>::register(RawOrigin::Signed(clone_rich).into(), name.clone(),account_to_source::<T>(rich_account.clone()),T::MinRegistrationDuration::get())?;
-        }:_(RawOrigin::Signed(rich_account),name.clone(),T::MinRegistrationDuration::get())
+        }:_(RawOrigin::Signed(rich_account),name,T::MinRegistrationDuration::get())
 
 
         set_owner {
@@ -290,8 +290,8 @@ mod redeem_code {
 
         name_redeem {
             let l in 1..LABEL_MAX_LEN as u32;
-            let nouce = l;
-            let name = "cupnfish";
+            let nouce = 5;
+            let name = get_rand_name(l as usize);
             let (label, _) = Label::<T::Hash>::new(name.as_bytes()).unwrap();
             let label_node = label.node;
             let duration = <T as crate::redeem_code::pallet::Config>::Moment::from(24*60*60*365 as u32);
@@ -302,7 +302,7 @@ mod redeem_code {
             let official = public.into_account();
 
             crate::registry::Pallet::<T>::set_official(RawOrigin::Signed(get_manager::<T>()).into(),official)?;
-            Pallet::<T>::mint_redeem(RawOrigin::Signed(get_manager::<T>()).into(),0,l)?;
+            Pallet::<T>::mint_redeem(RawOrigin::Signed(get_manager::<T>()).into(),0,10)?;
             let hash = name_to_node::<T::Hash>(name.as_bytes().to_vec(),<T as Config>::Registrar::basenode());
             let poor_account7 = poor_account::<T>(7);
             let poor_account77 = poor_account::<T>(77);
@@ -310,7 +310,7 @@ mod redeem_code {
 
         name_redeem_any {
             let l in 1..LABEL_MAX_LEN as u32;
-            let nouce = l;
+            let nouce = 5;
             let name = get_rand_name(l as usize);
             let duration = <T as crate::redeem_code::pallet::Config>::Moment::from(24*60*60*365 as u32);
             let msg = (duration, nouce).encode();
@@ -320,7 +320,7 @@ mod redeem_code {
             let official = public.into_account();
 
             crate::registry::Pallet::<T>::set_official(RawOrigin::Signed(get_manager::<T>()).into(),official)?;
-            Pallet::<T>::mint_redeem(RawOrigin::Signed(get_manager::<T>()).into(),0,l)?;
+            Pallet::<T>::mint_redeem(RawOrigin::Signed(get_manager::<T>()).into(),0,10)?;
             let hash = name_to_node::<T::Hash>(name.clone(),<T as Config>::Registrar::basenode());
             let poor_account7 = poor_account::<T>(7);
             let poor_account77 = poor_account::<T>(77);

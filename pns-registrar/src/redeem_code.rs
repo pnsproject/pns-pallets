@@ -6,7 +6,6 @@ pub mod crypto {
 
     pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"code");
 
-    use sp_core::ed25519::Signature as Ed25519Signature;
     use sp_runtime::{
         app_crypto::{app_crypto, ed25519},
         traits::Verify,
@@ -20,17 +19,19 @@ pub mod crypto {
         type RuntimeAppPublic = Public;
         type GenericSignature = sp_core::ed25519::Signature;
         type GenericPublic = sp_core::ed25519::Public;
+
+        fn sign(payload: &[u8], public: MultiSigner) -> Option<MultiSignature> {
+            let p: Self::GenericPublic = public.try_into().ok()?;
+            sp_io::crypto::ed25519_sign(KEY_TYPE, &p, payload)
+                .map(|x| {
+                    let sig: Self::GenericSignature = x.into();
+                    sig
+                })
+                .map(Into::into)
+        }
     }
 
     // implemented for mock runtime in test
-    impl frame_system::offchain::AppCrypto<<Ed25519Signature as Verify>::Signer, Ed25519Signature>
-        for BenchAuthId
-    {
-        type RuntimeAppPublic = Public;
-        type GenericSignature = sp_core::ed25519::Signature;
-        type GenericPublic = sp_core::ed25519::Public;
-    }
-
     #[cfg(test)]
     impl
         frame_system::offchain::AppCrypto<
