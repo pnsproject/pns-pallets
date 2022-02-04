@@ -6,42 +6,51 @@ pub mod crypto {
 
     pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"code");
 
-    use sp_runtime::{
-        app_crypto::{app_crypto, ed25519},
-        traits::Verify,
-        MultiSignature, MultiSigner,
-    };
-    app_crypto!(ed25519, KEY_TYPE);
+    use sp_runtime::{MultiSignature, MultiSigner};
 
-    pub struct BenchAuthId;
+    pub trait BenchCrypto<Public, Signature> {
+        /// A raw crypto public key wrapped by `RuntimeAppPublic`.
+        type GenericPublic: TryFrom<Public> + Into<Public>;
+        /// A matching raw crypto `Signature` type.
+        type GenericSignature: TryFrom<Signature> + Into<Signature>;
+        fn sign(public: Public, msg: &[u8]) -> Signature;
+    }
 
-    impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for BenchAuthId {
-        type RuntimeAppPublic = Public;
+    pub struct BenchPublic;
+
+    impl BenchCrypto<MultiSigner, MultiSignature> for BenchPublic {
         type GenericSignature = sp_core::ed25519::Signature;
         type GenericPublic = sp_core::ed25519::Public;
-
-        fn sign(payload: &[u8], public: MultiSigner) -> Option<MultiSignature> {
-            let p: Self::GenericPublic = public.try_into().ok()?;
-            sp_io::crypto::ed25519_sign(KEY_TYPE, &p, payload)
+        fn sign(public: MultiSigner, msg: &[u8]) -> MultiSignature {
+            let p: Self::GenericPublic = public.try_into().unwrap();
+            sp_io::crypto::ed25519_sign(KEY_TYPE, &p, msg)
                 .map(|x| {
                     let sig: Self::GenericSignature = x.into();
                     sig
                 })
                 .map(Into::into)
+                .unwrap()
         }
     }
 
     // implemented for mock runtime in test
     #[cfg(test)]
     impl
-        frame_system::offchain::AppCrypto<
-            <sp_runtime::testing::TestSignature as Verify>::Signer,
+        BenchCrypto<
+            <sp_runtime::testing::TestSignature as sp_runtime::traits::Verify>::Signer,
             sp_runtime::testing::TestSignature,
-        > for BenchAuthId
+        > for BenchPublic
     {
-        type RuntimeAppPublic = sp_runtime::testing::UintAuthorityId;
         type GenericSignature = sp_runtime::testing::TestSignature;
         type GenericPublic = sp_runtime::testing::UintAuthorityId;
+        fn sign(
+            public: sp_runtime::testing::UintAuthorityId,
+            msg: &[u8],
+        ) -> sp_runtime::testing::TestSignature {
+            use sp_runtime::app_crypto::RuntimeAppPublic;
+            let p: Self::GenericPublic = public.try_into().unwrap();
+            p.sign(&msg).unwrap()
+        }
     }
 }
 

@@ -265,7 +265,7 @@ mod redeem_code {
     use super::{get_manager, get_rand_name, name_to_node, poor_account};
     #[cfg(test)]
     use crate::mock::Test;
-    use crate::redeem_code::crypto::BenchAuthId;
+    use crate::redeem_code::crypto::{BenchCrypto, BenchPublic};
     use crate::traits::Registrar;
     use crate::{
         redeem_code::{Call, Config, Pallet},
@@ -273,7 +273,6 @@ mod redeem_code {
     };
     use codec::Encode;
     use frame_benchmarking::benchmarks;
-    use frame_system::offchain::AppCrypto;
     use frame_system::RawOrigin;
     use sp_runtime::traits::IdentifyAccount;
 
@@ -281,7 +280,7 @@ mod redeem_code {
         where_clause {
             where
             T: crate::origin::Config + crate::registry::Config,
-            BenchAuthId: AppCrypto<T::Public,T::Signature>,
+            BenchPublic: BenchCrypto<T::Public,T::Signature>,
             T::Public: Default + IdentifyAccount<AccountId = T::AccountId>,
         }
         mint_redeem {
@@ -292,21 +291,21 @@ mod redeem_code {
             let l in 1..LABEL_MAX_LEN as u32;
             let nouce = 5;
             let name = get_rand_name(l as usize);
-            let (label, _) = Label::<T::Hash>::new(name.as_bytes()).unwrap();
+            let (label, _) = Label::<T::Hash>::new(&name).unwrap();
             let label_node = label.node;
             let duration = <T as crate::redeem_code::pallet::Config>::Moment::from(24*60*60*365 as u32);
             let msg = (label_node, duration, nouce).encode();
 
             let public = T::Public::default();
-            let signature = <BenchAuthId as AppCrypto<T::Public,T::Signature>>::sign(&msg,T::Public::default()).unwrap();
+            let signature = <BenchPublic as BenchCrypto<T::Public,T::Signature>>::sign(T::Public::default(),&msg);
             let official = public.into_account();
 
             crate::registry::Pallet::<T>::set_official(RawOrigin::Signed(get_manager::<T>()).into(),official)?;
             Pallet::<T>::mint_redeem(RawOrigin::Signed(get_manager::<T>()).into(),0,10)?;
-            let hash = name_to_node::<T::Hash>(name.as_bytes().to_vec(),<T as Config>::Registrar::basenode());
+            let hash = name_to_node::<T::Hash>(name.clone(),<T as Config>::Registrar::basenode());
             let poor_account7 = poor_account::<T>(7);
             let poor_account77 = poor_account::<T>(77);
-        }:_(RawOrigin::Signed(poor_account7),name.as_bytes().to_vec(),duration,nouce,signature,poor_account77)
+        }:_(RawOrigin::Signed(poor_account7),name,duration,nouce,signature,poor_account77)
 
         name_redeem_any {
             let l in 1..LABEL_MAX_LEN as u32;
@@ -316,7 +315,7 @@ mod redeem_code {
             let msg = (duration, nouce).encode();
 
             let public = T::Public::default();
-            let signature = <BenchAuthId as AppCrypto<T::Public,T::Signature>>::sign(&msg,T::Public::default()).unwrap();
+            let signature = <BenchPublic as BenchCrypto<T::Public,T::Signature>>::sign(T::Public::default(),&msg);
             let official = public.into_account();
 
             crate::registry::Pallet::<T>::set_official(RawOrigin::Signed(get_manager::<T>()).into(),official)?;
