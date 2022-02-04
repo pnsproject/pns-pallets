@@ -23,7 +23,8 @@ benchmarks! {
     set_text {
         let l in 0..10_000;
         let (owner,node) = get_cupnfishu_node::<T>()?;
-    }: _(RawOrigin::Signed(owner), node.into(),TextKind::Email,sp_std::vec![7;l as usize])
+        let data = sp_std::vec![7;l as usize];
+    }: _(RawOrigin::Signed(owner), node.into(),TextKind::Email,data)
 }
 
 fn get_cupnfishu_node<T>() -> Result<(T::AccountId, T::Hash), DispatchError>

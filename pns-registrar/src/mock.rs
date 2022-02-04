@@ -58,7 +58,19 @@ impl crate::origin::Config for Test {
 pub struct TestChecker;
 
 impl crate::origin::WeightInfo for TestWeightInfo {
-    fn set_origin(_approved: bool) -> Weight {
+    fn set_origin_true() -> Weight {
+        0
+    }
+
+    fn set_origin_false() -> Weight {
+        0
+    }
+
+    fn set_origin_for_root_true() -> Weight {
+        0
+    }
+
+    fn set_origin_for_root_false() -> Weight {
         0
     }
 }
@@ -194,10 +206,6 @@ impl pns_resolvers::resolvers::WeightInfo for TestWeightInfo {
 }
 
 impl crate::registry::WeightInfo for TestWeightInfo {
-    fn approval_for_all(_approved: bool) -> Weight {
-        0
-    }
-
     fn set_resolver() -> Weight {
         0
     }
@@ -210,7 +218,19 @@ impl crate::registry::WeightInfo for TestWeightInfo {
         0
     }
 
-    fn approve(_approved: bool) -> Weight {
+    fn approval_for_all_true() -> Weight {
+        0
+    }
+
+    fn approval_for_all_false() -> Weight {
+        0
+    }
+
+    fn approve_true() -> Weight {
+        0
+    }
+
+    fn approve_false() -> Weight {
         0
     }
 }
@@ -246,12 +266,8 @@ impl crate::registrar::WeightInfo for TestWeightInfo {
 }
 
 impl crate::redeem_code::WeightInfo for TestWeightInfo {
-    fn mint_redeem(len: Option<u32>) -> Weight {
-        if let Some(len) = len {
-            len as Weight * 0
-        } else {
-            0
-        }
+    fn mint_redeem(_len: u32) -> Weight {
+        0
     }
 
     fn name_redeem(_len: u32) -> Weight {

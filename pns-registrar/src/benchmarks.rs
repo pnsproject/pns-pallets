@@ -206,7 +206,7 @@ mod registrar {
         }
         register {
             // l is length of name.
-            let l in 0..LABEL_MAX_LEN as u32;
+            let l in 0..(LABEL_MAX_LEN as u32);
             let name = get_rand_name(l as usize);
             let rich_account = create_caller::<T,T::Currency>(8);
             let source = account_to_source::<T>(rich_account.clone());
@@ -217,7 +217,7 @@ mod registrar {
 
         renew {
             // l is length of name.
-            let l in 0..LABEL_MAX_LEN as u32;
+            let l in 0..(LABEL_MAX_LEN as u32);
             let name = get_rand_name(l as usize);
             let rich_account = create_caller::<T,T::Currency>(8);
             let clone_rich = rich_account.clone();
