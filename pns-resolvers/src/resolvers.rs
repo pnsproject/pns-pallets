@@ -206,7 +206,7 @@ pub mod pallet {
 
             Ok(())
         }
-        #[pallet::weight(T::WeightInfo::set_text(content.len()))]
+        #[pallet::weight(T::WeightInfo::set_text(content.len() as u32))]
         pub fn set_text(
             origin: OriginFor<T>,
             node: T::DomainHash,
@@ -230,7 +230,7 @@ pub mod pallet {
 use frame_support::dispatch::Weight;
 
 pub trait WeightInfo {
-    fn set_text(content_len: usize) -> Weight;
+    fn set_text(content_len: u32) -> Weight;
     fn set_account() -> Weight;
 }
 
