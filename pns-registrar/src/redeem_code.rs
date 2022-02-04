@@ -6,29 +6,29 @@ pub mod crypto {
 
     pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"code");
 
-    use sp_core::sr25519::Signature as Sr25519Signature;
+    use sp_core::ed25519::Signature as Ed25519Signature;
     use sp_runtime::{
-        app_crypto::{app_crypto, sr25519},
+        app_crypto::{app_crypto, ed25519},
         traits::Verify,
         MultiSignature, MultiSigner,
     };
-    app_crypto!(sr25519, KEY_TYPE);
+    app_crypto!(ed25519, KEY_TYPE);
 
     pub struct BenchAuthId;
 
     impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for BenchAuthId {
         type RuntimeAppPublic = Public;
-        type GenericSignature = sp_core::sr25519::Signature;
-        type GenericPublic = sp_core::sr25519::Public;
+        type GenericSignature = sp_core::ed25519::Signature;
+        type GenericPublic = sp_core::ed25519::Public;
     }
 
     // implemented for mock runtime in test
-    impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature>
+    impl frame_system::offchain::AppCrypto<<Ed25519Signature as Verify>::Signer, Ed25519Signature>
         for BenchAuthId
     {
         type RuntimeAppPublic = Public;
-        type GenericSignature = sp_core::sr25519::Signature;
-        type GenericPublic = sp_core::sr25519::Public;
+        type GenericSignature = sp_core::ed25519::Signature;
+        type GenericPublic = sp_core::ed25519::Public;
     }
 
     #[cfg(test)]
