@@ -554,11 +554,27 @@ use frame_support::{
 };
 
 pub trait WeightInfo {
-    fn approval_for_all(approved: bool) -> Weight;
+    fn approval_for_all(approved: bool) -> Weight {
+        if approved {
+            Self::approval_for_all_true()
+        } else {
+            Self::approval_for_all_false()
+        }
+    }
+    fn approval_for_all_true() -> Weight;
+    fn approval_for_all_false() -> Weight;
     fn set_resolver() -> Weight;
     fn destroy() -> Weight;
     fn set_official() -> Weight;
-    fn approve(approved: bool) -> Weight;
+    fn approve(approved: bool) -> Weight {
+        if approved {
+            Self::approve_true()
+        } else {
+            Self::approve_false()
+        }
+    }
+    fn approve_true() -> Weight;
+    fn approve_false() -> Weight;
 }
 
 impl<T: pallet::Config> crate::traits::NFT<T::AccountId> for pallet::Pallet<T> {

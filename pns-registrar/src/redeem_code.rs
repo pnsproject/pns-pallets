@@ -169,7 +169,7 @@ pub mod pallet {
         /// This is a Root method which is used to create the nouce needed to redeem the code.
         ///
         /// Ensure: start < end
-        #[pallet::weight(T::WeightInfo::mint_redeem(end.checked_sub(*start)))]
+        #[pallet::weight(T::WeightInfo::mint_redeem(end.checked_sub(*start).unwrap_or_default()))]
         pub fn mint_redeem(origin: OriginFor<T>, start: u32, end: u32) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
@@ -292,7 +292,7 @@ pub mod pallet {
 use frame_support::dispatch::Weight;
 
 pub trait WeightInfo {
-    fn mint_redeem(len: Option<u32>) -> Weight;
+    fn mint_redeem(len: u32) -> Weight;
     fn name_redeem(len: u32) -> Weight;
     fn name_redeem_any(len: u32) -> Weight;
 }
