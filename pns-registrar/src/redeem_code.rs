@@ -251,8 +251,8 @@ pub trait WeightInfo {
     fn mint_redeem(len: u32) -> Weight;
     fn name_redeem(len: u32) -> Weight {
         Self::create_label(len) + Self::for_redeem_code(len) + Self::name_redeem_min()
-            - Self::create_label(10)
-            - Self::for_redeem_code(10)
+            - Self::create_label(3)
+            - Self::for_redeem_code(3)
     }
     fn name_redeem_any(len: u32) -> Weight {
         Self::create_label(len) + Self::for_redeem_code(len) + Self::name_redeem_any_min()

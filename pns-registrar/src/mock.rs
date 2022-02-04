@@ -196,7 +196,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 pub struct TestWeightInfo;
 
 impl pns_resolvers::resolvers::WeightInfo for TestWeightInfo {
-    fn set_text(content_len: usize) -> Weight {
+    fn set_text(content_len: u32) -> Weight {
         10 * content_len as Weight + 0
     }
 
