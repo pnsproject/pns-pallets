@@ -262,70 +262,81 @@ mod registrar {
 }
 
 mod redeem_code {
-    use super::{get_manager, get_rand_name, name_to_node, poor_account};
-    #[cfg(test)]
-    use crate::mock::Test;
-    use crate::redeem_code::crypto::{BenchCrypto, BenchPublic};
+    use super::{get_manager, name_to_node, poor_account};
     use crate::traits::Registrar;
     use crate::{
         redeem_code::{Call, Config, Pallet},
         traits::{Label, LABEL_MAX_LEN},
     };
-    use codec::Encode;
+    use codec::Decode;
     use frame_benchmarking::benchmarks;
     use frame_system::RawOrigin;
-    use sp_runtime::traits::IdentifyAccount;
 
     benchmarks! {
         where_clause {
             where
             T: crate::origin::Config + crate::registry::Config,
-            BenchPublic: BenchCrypto<T::Public,T::Signature>,
-            T::Public: Default + IdentifyAccount<AccountId = T::AccountId>,
+            T::Signature: Decode,
+            T::AccountId: Decode,
         }
         mint_redeem {
             let l in 1..10_000;
         }:_(RawOrigin::Signed(get_manager::<T>()),0,l)
 
-        name_redeem {
-            let l in 1..LABEL_MAX_LEN as u32;
+        name_redeem_min {
+            let name = sp_std::vec![104, 120, 120];
+            let duration = T::Moment::from(31536000_u32);
             let nouce = 5;
-            let name = get_rand_name(l as usize);
-            let (label, _) = Label::<T::Hash>::new(&name).unwrap();
-            let label_node = label.node;
-            let duration = <T as crate::redeem_code::pallet::Config>::Moment::from(24*60*60*365 as u32);
-            let msg = (label_node, duration, nouce).encode();
-
-            let public = T::Public::default();
-            let signature = <BenchPublic as BenchCrypto<T::Public,T::Signature>>::sign(T::Public::default(),&msg);
-            let official = public.into_account();
+            let signature = T::Signature::decode(&mut &sp_std::vec![0, 229, 199, 81, 157, 241, 4, 157, 210, 38, 135, 222, 235, 38, 34, 192, 103, 30, 22, 80, 103, 169, 1, 150, 27, 177, 180, 162, 166, 18, 199, 178, 147, 115, 83, 174, 148, 221, 52, 101, 44, 22, 46, 84, 126, 48, 154, 45, 106, 125, 139, 217, 17, 59, 243, 210, 11, 77, 46, 200, 216, 98, 238, 110, 8][..]).unwrap();
+            let official = T::AccountId::decode(&mut &sp_std::vec![13, 213, 60, 222, 83, 155, 9, 162, 203, 198, 116, 100, 154, 230, 209, 84, 224, 76, 72, 25, 6, 39, 161, 214, 157, 32, 78, 221, 137, 199, 207, 162][..]).unwrap();
 
             crate::registry::Pallet::<T>::set_official(RawOrigin::Signed(get_manager::<T>()).into(),official)?;
             Pallet::<T>::mint_redeem(RawOrigin::Signed(get_manager::<T>()).into(),0,10)?;
             let hash = name_to_node::<T::Hash>(name.clone(),<T as Config>::Registrar::basenode());
             let poor_account7 = poor_account::<T>(7);
             let poor_account77 = poor_account::<T>(77);
-        }:_(RawOrigin::Signed(poor_account7),name,duration,nouce,signature,poor_account77)
+        }:name_redeem(RawOrigin::Signed(poor_account7),name,duration,nouce,signature,poor_account77)
 
-        name_redeem_any {
-            let l in 1..LABEL_MAX_LEN as u32;
+        name_redeem_any_min {
+            let name = sp_std::vec![99, 117, 112, 110, 102, 105, 115, 104, 120, 120];
+            let duration = T::Moment::from(31536000_u32);
             let nouce = 5;
-            let name = get_rand_name(l as usize);
-            let duration = <T as crate::redeem_code::pallet::Config>::Moment::from(24*60*60*365 as u32);
-            let msg = (duration, nouce).encode();
-
-            let public = T::Public::default();
-            let signature = <BenchPublic as BenchCrypto<T::Public,T::Signature>>::sign(T::Public::default(),&msg);
-            let official = public.into_account();
+            let signature = T::Signature::decode(&mut &sp_std::vec![0, 182, 166, 0, 120, 22, 9, 41, 218, 6, 241, 55, 33, 5, 184, 6, 196, 87, 25, 50, 80, 73, 5, 245, 146, 120, 185, 202, 248, 52, 213, 24, 175, 10, 58, 41, 114, 237, 190, 72, 138, 70, 221, 151, 104, 249, 219, 191, 135, 243, 221, 29, 240, 231, 197, 177, 246, 248, 213, 114, 169, 60, 99, 167, 2][..]).unwrap();
+            let official = T::AccountId::decode(&mut &sp_std::vec![13, 213, 60, 222, 83, 155, 9, 162, 203, 198, 116, 100, 154, 230, 209, 84, 224, 76, 72, 25, 6, 39, 161, 214, 157, 32, 78, 221, 137, 199, 207, 162][..]).unwrap();
 
             crate::registry::Pallet::<T>::set_official(RawOrigin::Signed(get_manager::<T>()).into(),official)?;
             Pallet::<T>::mint_redeem(RawOrigin::Signed(get_manager::<T>()).into(),0,10)?;
             let hash = name_to_node::<T::Hash>(name.clone(),<T as Config>::Registrar::basenode());
             let poor_account7 = poor_account::<T>(7);
             let poor_account77 = poor_account::<T>(77);
-        }:_(RawOrigin::Signed(poor_account7),name,duration,nouce,signature,poor_account77)
+        }:name_redeem_any(RawOrigin::Signed(poor_account7),name,duration,nouce,signature,poor_account77)
 
-        impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), Test);
+        create_label {
+            let l in 3..LABEL_MAX_LEN as u32;
+            let mut name = "hxx".to_ascii_lowercase();
+            for _ in 3..l {
+                name.push_str("x");
+            }
+            let data = name.into_bytes();
+        }: {
+            crate::traits::Label::<T::Hash>::new(&data).unwrap();
+        }
+
+        for_redeem_code {
+            let l in 3..LABEL_MAX_LEN as u32;
+            let mut name = "hxx".to_ascii_lowercase();
+            for _ in 3..l {
+                name.push_str("x");
+            }
+            let data = name.into_bytes();
+            let (label, _) =
+            Label::<T::Hash>::new(&data).unwrap();
+            let duration = <T as crate::redeem_code::pallet::Config>::Moment::from(24*60*60*365 as u32);
+            let poor_account7 = poor_account::<T>(7);
+        }: {
+            <T as Config>::Registrar::for_redeem_code(data, poor_account7, duration, label).unwrap();
+        }
+
     }
 }
 

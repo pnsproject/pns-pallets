@@ -270,11 +270,19 @@ impl crate::redeem_code::WeightInfo for TestWeightInfo {
         0
     }
 
-    fn name_redeem(_len: u32) -> Weight {
+    fn create_label(_len: u32) -> Weight {
         0
     }
 
-    fn name_redeem_any(_len: u32) -> Weight {
+    fn for_redeem_code(_len: u32) -> Weight {
+        0
+    }
+
+    fn name_redeem_min() -> Weight {
+        0
+    }
+
+    fn name_redeem_any_min() -> Weight {
         0
     }
 }
