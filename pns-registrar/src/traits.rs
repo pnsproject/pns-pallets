@@ -117,7 +117,7 @@ where
             .map(|label| label.to_ascii_lowercase())
             .ok()?;
         let label_len = label.len();
-        if label_len < LABEL_MIN_LEN || label_len > LABEL_MAX_LEN {
+        if !(LABEL_MIN_LEN..=LABEL_MAX_LEN).contains(&label_len) {
             return None;
         }
         let mut flag = false;
@@ -157,23 +157,23 @@ where
 }
 
 pub trait Available {
-    fn is_anctionable(self) -> bool;
-    fn is_registrable(self) -> bool;
+    fn is_anctionable(&self) -> bool;
+    fn is_registrable(&self) -> bool;
 }
 
 impl Available for usize {
-    fn is_anctionable(self) -> bool {
-        self > LABEL_MIN_LEN && self < 10
+    fn is_anctionable(&self) -> bool {
+        *self > LABEL_MIN_LEN && *self < 10
     }
 
-    fn is_registrable(self) -> bool {
-        self > 9
+    fn is_registrable(&self) -> bool {
+        *self > 9
     }
 }
 
 pub trait IntoMoment<T> {
     type Moment;
-    fn into_moment(&self) -> Self::Moment;
+    fn into_moment(self) -> Self::Moment;
 }
 
 pub trait ExchangeRate {

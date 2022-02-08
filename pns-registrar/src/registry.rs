@@ -179,7 +179,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         pub fn authorised(caller: &T::AccountId, node: T::Hash) -> DispatchResult {
             let owner = &nft::Pallet::<T>::tokens(T::ClassId::zero(), node)
-                .ok_or_else(|| Error::<T>::NotExist)?
+                .ok_or(Error::<T>::NotExist)?
                 .owner;
 
             ensure!(
@@ -348,7 +348,7 @@ pub mod pallet {
         pub fn do_reclaimed(caller: &T::AccountId, token: T::TokenId) -> DispatchResult {
             let class_id = T::ClassId::zero();
             let token_info =
-                nft::Pallet::<T>::tokens(class_id, token).ok_or_else(|| Error::<T>::NotExist)?;
+                nft::Pallet::<T>::tokens(class_id, token).ok_or(Error::<T>::NotExist)?;
 
             let owner = token_info.owner;
 
@@ -390,7 +390,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let class_id = T::ClassId::zero();
             let token_info =
-                nft::Pallet::<T>::tokens(class_id, token).ok_or_else(|| Error::<T>::NotExist)?;
+                nft::Pallet::<T>::tokens(class_id, token).ok_or(Error::<T>::NotExist)?;
 
             let owner = token_info.owner;
 
@@ -525,7 +525,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             let owner = nft::Pallet::<T>::tokens(T::ClassId::zero(), node)
-                .ok_or_else(|| Error::<T>::NotExist)?
+                .ok_or(Error::<T>::NotExist)?
                 .owner;
 
             ensure!(to != owner, Error::<T>::ApprovalFailure);

@@ -202,11 +202,11 @@ pub mod pallet {
 		pub fn bid(origin: OriginFor<T>, name: Vec<u8>, amount: BalanceOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let domain = DomainName::<T::Hash, T::BlockNumber, BalanceOf<T>>::new(&name)
-				.ok_or_else(|| Error::<T>::DomainBuildFailed)?;
+				.ok_or( Error::<T>::DomainBuildFailed)?;
 
 			ensure!(T::Registrar::is_anctionable(&domain), Error::<T>::UnAnctionable);
 
-			let node = domain.iter().last().ok_or_else(|| Error::<T>::GetNodeFailed)?;
+			let node = domain.iter().last().ok_or( Error::<T>::GetNodeFailed)?;
 
 			Self::handle_bid(who, node, amount)?;
 			Ok(())

@@ -216,18 +216,18 @@ pub mod pallet {
             );
 
             let (label, label_len) =
-                Label::<T::Hash>::new(&name).ok_or_else(|| Error::<T>::ParseLabelFailed)?;
+                Label::<T::Hash>::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             use crate::traits::Available;
 
             ensure!(label_len.is_registrable(), Error::<T>::LabelInvalid);
 
             let price = T::PriceOracle::renew_price(label_len, duration)
-                .ok_or_else(|| Error::<T>::ValueOverflow)?;
+                .ok_or(Error::<T>::ValueOverflow)?;
 
             let official = T::Official::get_official_account();
 
-            let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
+            let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
 
             let expire = now + duration;
             // 防止计算结果溢出
@@ -250,10 +250,10 @@ pub mod pallet {
                 owner.clone(),
                 0,
                 |maybe_pre_owner| -> DispatchResult {
-                    let register_fee = T::PriceOracle::register_fee(label_len)
-                        .ok_or_else(|| Error::<T>::ValueOverflow)?;
-                    let deposit = T::PriceOracle::deposit_fee(label_len)
-                        .ok_or_else(|| Error::<T>::ValueOverflow)?;
+                    let register_fee =
+                        T::PriceOracle::register_fee(label_len).ok_or(Error::<T>::ValueOverflow)?;
+                    let deposit =
+                        T::PriceOracle::deposit_fee(label_len).ok_or(Error::<T>::ValueOverflow)?;
                     let target_value = price + register_fee + deposit;
                     T::Currency::transfer(
                         &caller,
@@ -268,7 +268,7 @@ pub mod pallet {
                                 T::Currency::unreserve(&official, info.deposit);
                                 T::Currency::transfer(
                                     &official,
-                                    &pre_owner,
+                                    pre_owner,
                                     info.deposit,
                                     ExistenceRequirement::KeepAlive,
                                 )?;
@@ -306,17 +306,15 @@ pub mod pallet {
         pub fn renew(origin: OriginFor<T>, name: Vec<u8>, duration: T::Moment) -> DispatchResult {
             let caller = ensure_signed(origin)?;
             let (label, label_len) =
-                Label::<T::Hash>::new(&name).ok_or_else(|| Error::<T>::ParseLabelFailed)?;
+                Label::<T::Hash>::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             let label_node = label.encode_with_basenode(T::BaseNode::get());
 
             RegistrarInfos::<T>::mutate(label_node, |info| -> DispatchResult {
-                let info = info
-                    .as_mut()
-                    .ok_or_else(|| Error::<T>::NotExistOrOccupied)?;
+                let info = info.as_mut().ok_or(Error::<T>::NotExistOrOccupied)?;
 
                 let expire = info.expire;
-                let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
+                let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
                 let grace_period = T::GracePeriod::get();
                 ensure!(now <= expire + grace_period, Error::<T>::NotRenewable);
                 let target_expire = expire + duration;
@@ -325,7 +323,7 @@ pub mod pallet {
                     Error::<T>::TimeOverflow
                 );
                 let price = T::PriceOracle::renew_price(label_len, duration)
-                    .ok_or_else(|| Error::<T>::ValueOverflow)?;
+                    .ok_or(Error::<T>::ValueOverflow)?;
                 T::Currency::transfer(
                     &caller,
                     &T::Official::get_official_account(),
@@ -356,7 +354,7 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
             let to = T::Lookup::lookup(to)?;
             if let Some(info) = RegistrarInfos::<T>::get(node) {
-                let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
+                let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
                 ensure!(
                     info.expire + T::GracePeriod::get() > now,
                     Error::<T>::NotOwned
@@ -384,8 +382,8 @@ pub mod pallet {
             let to = T::Lookup::lookup(to)?;
             let capacity = RegistrarInfos::<T>::get(node)
                 .map(|info| info.capacity)
-                .unwrap_or_else(|| T::DefaultCapacity::get());
-            let (label, _) = Label::new(&data).ok_or_else(|| Error::<T>::ParseLabelFailed)?;
+                .unwrap_or_else(T::DefaultCapacity::get);
+            let (label, _) = Label::new(&data).ok_or(Error::<T>::ParseLabelFailed)?;
             let label_node = label.encode_with_node(node);
             T::Registry::mint_subname(&caller, node, label_node, to.clone(), capacity, |_| Ok(()))?;
             Self::deposit_event(Event::<T>::SubnameRegistered(data, label_node, to, node));
@@ -453,10 +451,10 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     type Duration = T::Moment;
 
     fn check_expires_registrable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
+        let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
 
         let expire = RegistrarInfos::<T>::get(node)
-            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
+            .ok_or(Error::<T>::NotExistOrOccupied)?
             .expire;
 
         frame_support::ensure!(now > expire + T::GracePeriod::get(), Error::<T>::Occupied);
@@ -484,10 +482,10 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     // }
 
     fn check_expires_renewable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
+        let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
 
         let expire = RegistrarInfos::<T>::get(node)
-            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
+            .ok_or(Error::<T>::NotExistOrOccupied)?
             .expire;
 
         frame_support::ensure!(
@@ -499,10 +497,10 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     }
 
     fn check_expires_useable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
+        let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
 
         let expire = RegistrarInfos::<T>::get(node)
-            .ok_or_else(|| Error::<T>::NotExistOrOccupied)?
+            .ok_or(Error::<T>::NotExistOrOccupied)?
             .expire;
 
         frame_support::ensure!(now < expire, Error::<T>::NotUseable);
@@ -536,7 +534,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         label: Label<Self::Hash>,
     ) -> DispatchResult {
         let official = T::Official::get_official_account();
-        let now = IntoMoment::<T>::into_moment(&T::NowProvider::now());
+        let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
         let expire = now + duration;
         // 防止计算结果溢出
         frame_support::ensure!(
@@ -593,7 +591,7 @@ use sp_runtime::traits::SaturatedConversion;
 impl<T: Config> IntoMoment<T> for core::time::Duration {
     type Moment = T::Moment;
 
-    fn into_moment(&self) -> Self::Moment {
+    fn into_moment(self) -> Self::Moment {
         let duration = self.as_secs();
         SaturatedConversion::saturated_from(duration)
     }

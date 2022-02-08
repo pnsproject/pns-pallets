@@ -202,10 +202,8 @@ impl<T: Config> PriceOracle for Pallet<T> {
         let rent_price = (rent_prices[len - 1].checked_mul(&T::ExchangeRate::get_exchange_rate()))?
             .saturated_into::<u128>();
 
-        Some(
-            Self::Balance::saturated_from(rent_price.checked_mul(duration)?)
-                .checked_div(&T::RateScale::get())?,
-        )
+        Self::Balance::saturated_from(rent_price.checked_mul(duration)?)
+            .checked_div(&T::RateScale::get())
     }
 }
 

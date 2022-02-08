@@ -66,16 +66,10 @@ pub mod pallet {
     pub type Redeems<T> = StorageMap<_, Twox64Concat, u32, ()>;
 
     #[pallet::genesis_config]
+    #[cfg_attr(feature = "std", derive(Default))]
     pub struct GenesisConfig {
         /// [`start`,`end`]
         pub redeems: Option<(u32, u32)>,
-    }
-
-    #[cfg(feature = "std")]
-    impl Default for GenesisConfig {
-        fn default() -> Self {
-            GenesisConfig { redeems: None }
-        }
     }
 
     #[pallet::genesis_build]
@@ -86,7 +80,7 @@ pub mod pallet {
 
                 while nouce < end {
                     Redeems::<T>::insert(nouce, ());
-                    nouce = nouce + 1;
+                    nouce += 1;
                 }
             }
         }
@@ -135,7 +129,7 @@ pub mod pallet {
 
             while nouce <= end {
                 Redeems::<T>::insert(nouce, ());
-                nouce = nouce + 1;
+                nouce += 1;
             }
 
             Ok(())
@@ -167,8 +161,7 @@ pub mod pallet {
                 Error::<T>::RedeemsHasBeenUsed
             );
 
-            let (label, _) =
-                Label::<T::Hash>::new(&name).ok_or_else(|| Error::<T>::ParseLabelFailed)?;
+            let (label, _) = Label::<T::Hash>::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             let label_node = label.node;
             let data = (label_node, duration, nouce).encode();
@@ -219,7 +212,7 @@ pub mod pallet {
             );
 
             let (label, label_len) =
-                Label::<T::Hash>::new(&name).ok_or_else(|| Error::<T>::ParseLabelFailed)?;
+                Label::<T::Hash>::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             ensure!(label_len.is_registrable(), Error::<T>::LabelLenInvalid);
 
