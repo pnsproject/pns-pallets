@@ -390,8 +390,6 @@ impl crate::price_oracle::Config for Test {
 
     type ExchangeRate = TestRate;
 
-    type RateScale = RateScale;
-
     type ManagerOrigin = ManagerOrigin;
 }
 

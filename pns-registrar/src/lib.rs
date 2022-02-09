@@ -11,6 +11,8 @@ pub mod redeem_code;
 pub mod registrar;
 pub mod registry;
 pub mod traits;
+pub mod migration;
+
 
 #[cfg(test)]
 pub mod mock;
@@ -20,3 +22,4 @@ pub(crate) mod tests;
 
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod benchmarks;
+

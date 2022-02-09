@@ -38,9 +38,6 @@ pub mod pallet {
 
         type ExchangeRate: ExchangeRateT<Balance = BalanceOf<Self>>;
 
-        #[pallet::constant]
-        type RateScale: Get<BalanceOf<Self>>;
-
         type WeightInfo: WeightInfo;
 
         type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
@@ -145,7 +142,6 @@ pub mod pallet {
 }
 use crate::traits::{ExchangeRate as ExchangeRateT, PriceOracle};
 use frame_support::pallet_prelude::Weight;
-use frame_support::traits::Get;
 use sp_runtime::{
     traits::{CheckedDiv, CheckedMul},
     SaturatedConversion,
@@ -179,9 +175,7 @@ impl<T: Config> PriceOracle for Pallet<T> {
         };
         let exchange_rate = T::ExchangeRate::get_exchange_rate();
 
-        base_prices[len - 1]
-            .checked_mul(&exchange_rate)
-            .and_then(|value| value.checked_div(&T::RateScale::get()))
+        base_prices[len - 1].checked_mul(&exchange_rate)
     }
 
     fn registry_price(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
@@ -202,8 +196,9 @@ impl<T: Config> PriceOracle for Pallet<T> {
         let rent_price = (rent_prices[len - 1].checked_mul(&T::ExchangeRate::get_exchange_rate()))?
             .saturated_into::<u128>();
 
-        Self::Balance::saturated_from(rent_price.checked_mul(duration)?)
-            .checked_div(&T::RateScale::get())
+        rent_price
+            .checked_mul(duration)
+            .map(|res| res.saturated_into::<Self::Balance>())
     }
 }
 
