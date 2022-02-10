@@ -404,6 +404,9 @@ mod origin {
             Pallet::<T>::set_origin_for_root(RawOrigin::Root.into(),account_to_source::<T>(account.clone()),true)?;
         }:set_origin_for_root(RawOrigin::Root,account_to_source::<T>(account),false)
 
+        set_registrar_open {
+        }_(RawOrigin::Signed(get_manager::<T>()),false)
+
         impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), Test);
     }
 }

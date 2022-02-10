@@ -9,7 +9,7 @@ pub mod pallet {
     use super::*;
     use sp_std::vec::Vec;
 
-    use crate::traits::{Label, Official, PriceOracle, Registry};
+    use crate::traits::{IsRegistrarOpen, Label, Official, PriceOracle, Registry};
     use frame_support::{
         pallet_prelude::*,
         traits::{Currency, EnsureOrigin, ExistenceRequirement, ReservableCurrency, UnixTime},
@@ -65,6 +65,8 @@ pub mod pallet {
         type PriceOracle: PriceOracle<Duration = Self::Moment, Balance = BalanceOf<Self>>;
 
         type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
+
+        type IsOpen: IsRegistrarOpen;
 
         type Official: Official<AccountId = Self::AccountId>;
     }
@@ -171,6 +173,8 @@ pub mod pallet {
         NotRenewable,
         /// You want to register in less time than the minimum time we set.
         RegistryDurationInvalid,
+        /// Sorry, the registration center is currently closed, please pay attention to the official message and wait for the registration to open.
+        RegistrarClosed,
     }
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -209,6 +213,8 @@ pub mod pallet {
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
             let owner = T::Lookup::lookup(owner)?;
+
+            ensure!(T::IsOpen::is_open(), Error::<T>::RegistrarClosed);
 
             ensure!(
                 duration >= T::MinRegistrationDuration::get(),
@@ -305,6 +311,9 @@ pub mod pallet {
         #[frame_support::transactional]
         pub fn renew(origin: OriginFor<T>, name: Vec<u8>, duration: T::Moment) -> DispatchResult {
             let caller = ensure_signed(origin)?;
+
+            ensure!(T::IsOpen::is_open(), Error::<T>::RegistrarClosed);
+
             let (label, label_len) =
                 Label::<T::Hash>::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
@@ -353,6 +362,9 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             let to = T::Lookup::lookup(to)?;
+
+            ensure!(T::IsOpen::is_open(), Error::<T>::RegistrarClosed);
+
             if let Some(info) = RegistrarInfos::<T>::get(node) {
                 let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
                 ensure!(
@@ -380,6 +392,9 @@ pub mod pallet {
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
             let to = T::Lookup::lookup(to)?;
+
+            ensure!(T::IsOpen::is_open(), Error::<T>::RegistrarClosed);
+
             let capacity = RegistrarInfos::<T>::get(node)
                 .map(|info| info.capacity)
                 .unwrap_or_else(T::DefaultCapacity::get);
@@ -400,6 +415,9 @@ pub mod pallet {
         #[frame_support::transactional]
         pub fn reclaimed(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
             let caller = ensure_signed(origin)?;
+
+            ensure!(T::IsOpen::is_open(), Error::<T>::RegistrarClosed);
+
             ensure!(
                 RegistrarInfos::<T>::contains_key(node),
                 Error::<T>::NotExistOrOccupied

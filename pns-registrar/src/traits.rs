@@ -187,3 +187,7 @@ pub trait Official {
 
     fn get_official_account() -> Self::AccountId;
 }
+
+pub trait IsRegistrarOpen {
+    fn is_open() -> bool;
+}

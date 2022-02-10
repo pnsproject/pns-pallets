@@ -4,7 +4,7 @@ pub use pallet::*;
 pub mod pallet {
     use super::WeightInfo;
     use frame_support::pallet_prelude::*;
-    use frame_support::traits::EnsureOrigin;
+    use frame_support::traits::{EnsureOrigin, Get};
     use frame_system::pallet_prelude::*;
     use sp_runtime::traits::StaticLookup;
 
@@ -21,6 +21,17 @@ pub mod pallet {
 
     #[pallet::storage]
     pub type Origins<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, ()>;
+
+    #[pallet::storage]
+    pub type IsRegistrarOpen<T: Config> = StorageValue<_, bool, ValueQuery, DefaultOpen>;
+
+    pub struct DefaultOpen;
+
+    impl Get<bool> for DefaultOpen {
+        fn get() -> bool {
+            true
+        }
+    }
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
@@ -54,6 +65,14 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::weight(T::WeightInfo::set_registrar_open())]
+        pub fn set_registrar_open(origin: OriginFor<T>, is_open: bool) -> DispatchResult {
+            let _who = Self::ensure_origin(origin)?;
+
+            IsRegistrarOpen::<T>::put(is_open);
+
+            Ok(())
+        }
         #[pallet::weight(T::WeightInfo::set_origin(*approved))]
         pub fn set_origin(
             origin: OriginFor<T>,
@@ -112,6 +131,12 @@ impl<T: Config> EnsureOrigin<T::Origin> for Pallet<T> {
     }
 }
 
+impl<T: Config> crate::traits::IsRegistrarOpen for Pallet<T> {
+    fn is_open() -> bool {
+        IsRegistrarOpen::<T>::get()
+    }
+}
+
 pub trait WeightInfo {
     fn set_origin(approved: bool) -> Weight {
         if approved {
@@ -127,6 +152,7 @@ pub trait WeightInfo {
             Self::set_origin_for_root_false()
         }
     }
+    fn set_registrar_open() -> Weight;
     fn set_origin_true() -> Weight;
     fn set_origin_false() -> Weight;
     fn set_origin_for_root_true() -> Weight;
