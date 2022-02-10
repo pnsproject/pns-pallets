@@ -216,6 +216,7 @@ pub mod pallet {
 }
 
 use frame_support::dispatch::Weight;
+use sp_std::vec::Vec;
 
 pub trait WeightInfo {
     fn set_text(content_len: u32) -> Weight;
@@ -263,7 +264,7 @@ pub trait RegistryChecker {
     Default,
 )]
 #[cfg_attr(feature = "std", derive(Hash))]
-pub struct Content(pub sp_std::vec::Vec<u8>);
+pub struct Content(pub Vec<u8>);
 
 impl MaxEncodedLen for Content {
     fn max_encoded_len() -> usize {
