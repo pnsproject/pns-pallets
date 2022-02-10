@@ -5,7 +5,7 @@ use frame_support::traits::Currency;
 use sp_io::hashing::keccak_256;
 use sp_runtime::{
     traits::{AtLeast32BitUnsigned, MaybeSerializeDeserialize},
-    DispatchResult,
+    DispatchError, DispatchResult,
 };
 use sp_std::vec::Vec;
 
@@ -185,7 +185,7 @@ pub trait ExchangeRate {
 pub trait Official {
     type AccountId;
 
-    fn get_official_account() -> Self::AccountId;
+    fn get_official_account() -> Result<Self::AccountId, DispatchError>;
 }
 
 pub trait IsRegistrarOpen {

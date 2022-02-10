@@ -1,3 +1,4 @@
+use codec::MaxEncodedLen;
 pub use pallet::*;
 
 #[frame_support::pallet]
@@ -7,9 +8,8 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
-    use sp_runtime::{
-        traits::{AtLeast32BitUnsigned, CheckEqual, MaybeDisplay, MaybeMallocSizeOf, SimpleBitOps},
-        MultiAddress,
+    use sp_runtime::traits::{
+        AtLeast32BitUnsigned, CheckEqual, MaybeDisplay, MaybeMallocSizeOf, SimpleBitOps,
     };
     use sp_std::vec;
     use sp_std::vec::Vec;
@@ -72,7 +72,7 @@ pub mod pallet {
         T::DomainHash,
         Twox64Concat,
         AddressKind,
-        MultiAddress<T::AccountId, T::AccountIndex>,
+        MultiAddress<T::AccountId>,
     >;
     #[derive(
         Encode,
@@ -105,16 +105,16 @@ pub mod pallet {
         T::DomainHash,
         Twox64Concat,
         TextKind,
-        Vec<u8>,
+        Content,
         ValueQuery,
     >;
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         /// [`node`,`address_kind`,`address`]
-        pub accounts: Vec<(T::DomainHash, AddressKind, LocalMultiAddress<T::AccountId>)>,
+        pub accounts: Vec<(T::DomainHash, AddressKind, MultiAddress<T::AccountId>)>,
         /// [`node`,`text_kind`,`text`]
-        pub texts: Vec<(T::DomainHash, TextKind, Vec<u8>)>,
+        pub texts: Vec<(T::DomainHash, TextKind, Content)>,
     }
 
     #[cfg(feature = "std")]
@@ -131,12 +131,6 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             for (node, address_kind, account) in self.accounts.iter().cloned() {
-                let account = match account {
-                    LocalMultiAddress::Id(id) => MultiAddress::Id(id),
-                    LocalMultiAddress::Raw(raw) => MultiAddress::Raw(raw),
-                    LocalMultiAddress::Address32(data) => MultiAddress::Address32(data),
-                    LocalMultiAddress::Address20(data) => MultiAddress::Address20(data),
-                };
                 Accounts::<T>::insert(node, address_kind, account);
             }
 
@@ -150,11 +144,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// [`node`,`kind`,`value`]
-        AddressChanged(
-            T::DomainHash,
-            AddressKind,
-            MultiAddress<T::AccountId, T::AccountIndex>,
-        ),
+        AddressChanged(T::DomainHash, AddressKind, MultiAddress<T::AccountId>),
     }
 
     #[pallet::error]
@@ -174,7 +164,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             node: T::DomainHash,
             kind: AddressKind,
-            address: MultiAddress<T::AccountId, T::AccountIndex>,
+            address: MultiAddress<T::AccountId>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
@@ -196,8 +186,6 @@ pub mod pallet {
                     kind == AddressKind::Ethereum,
                     Error::<T>::ParseAddressFailed
                 ),
-                MultiAddress::Index(_) => return Err(Error::<T>::NotSupportedIndex.into()),
-                _ => {}
             }
 
             Accounts::<T>::insert(node, kind.clone(), address.clone());
@@ -206,12 +194,12 @@ pub mod pallet {
 
             Ok(())
         }
-        #[pallet::weight(T::WeightInfo::set_text(content.len() as u32))]
+        #[pallet::weight(T::WeightInfo::set_text(content.0.len() as u32))]
         pub fn set_text(
             origin: OriginFor<T>,
             node: T::DomainHash,
             kind: TextKind,
-            content: Vec<u8>,
+            content: Content,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
@@ -244,13 +232,12 @@ pub trait WeightInfo {
     scale_info::TypeInfo,
     serde::Serialize,
     serde::Deserialize,
+    MaxEncodedLen,
 )]
 #[cfg_attr(feature = "std", derive(Hash))]
-pub enum LocalMultiAddress<AccountId> {
+pub enum MultiAddress<AccountId> {
     /// It's an account ID (pubkey).
     Id(AccountId),
-    /// It's some arbitrary raw bytes.
-    Raw(sp_std::vec::Vec<u8>),
     /// It's a 32 byte representation.
     Address32([u8; 32]),
     /// Its a 20 byte representation.
@@ -261,4 +248,31 @@ pub trait RegistryChecker {
     type Hash;
     type AccountId;
     fn check_node_useable(node: Self::Hash, owner: &Self::AccountId) -> bool;
+}
+
+#[derive(
+    codec::Encode,
+    codec::Decode,
+    PartialEq,
+    Eq,
+    Clone,
+    frame_support::RuntimeDebug,
+    scale_info::TypeInfo,
+    serde::Serialize,
+    serde::Deserialize,
+    Default,
+)]
+#[cfg_attr(feature = "std", derive(Hash))]
+pub struct Content(pub sp_std::vec::Vec<u8>);
+
+impl MaxEncodedLen for Content {
+    fn max_encoded_len() -> usize {
+        512
+    }
+}
+
+impl From<Vec<u8>> for Content {
+    fn from(inner: Vec<u8>) -> Self {
+        Content(inner)
+    }
 }

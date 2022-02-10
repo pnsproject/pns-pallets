@@ -127,7 +127,17 @@ impl<T: Config> EnsureOrigin<T::Origin> for Pallet<T> {
 
     #[cfg(feature = "runtime-benchmarks")]
     fn successful_origin() -> T::Origin {
-        T::Origin::from(RawOrigin::Signed(Default::default()))
+        use codec::Decode;
+
+        if let Some(o) = Origins::<T>::iter_keys().next() {
+            return T::Origin::from(RawOrigin::Signed(o));
+        }
+
+        let zero_account_id =
+            T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
+                .expect("infinite length input; no invalid inputs for type; qed");
+
+        T::Origin::from(RawOrigin::Signed(zero_account_id))
     }
 }
 

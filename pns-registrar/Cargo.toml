@@ -20,30 +20,30 @@ features = ["derive"]
 [dependencies.sp-core]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 
 [dependencies.sp-io]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 
 [dependencies.sp-std]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 
 [dependencies.sp-runtime]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 [dependencies.sp-api]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 
 [dependencies.codec]
@@ -56,19 +56,19 @@ version = '2.0.0'
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 optional = true
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 
 [dependencies.frame-support]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 
 [dependencies.frame-system]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 
 [dependencies.scale-info]
@@ -78,19 +78,19 @@ features = ["derive"]
 
 [dev-dependencies.pallet-balances]
 git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 [dev-dependencies.pallet-timestamp]
 git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 [dev-dependencies.pallet-aura]
 git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 [dev-dependencies.sp-consensus-aura]
 git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.15"
+branch = "polkadot-v0.9.16"
 
 [dev-dependencies.pns-resolvers]
 path = "../pns-resolvers"

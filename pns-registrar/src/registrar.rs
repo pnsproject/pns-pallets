@@ -44,7 +44,8 @@ pub mod pallet {
             + Default
             + TypeInfo
             + AtLeast32BitUnsigned
-            + MaybeSerializeDeserialize;
+            + MaybeSerializeDeserialize
+            + MaxEncodedLen;
 
         type NowProvider: UnixTime;
 
@@ -85,7 +86,16 @@ pub mod pallet {
     pub type ReservedList<T: Config> = StorageMap<_, Twox64Concat, T::Hash, (), ValueQuery>;
 
     #[derive(
-        Encode, Decode, PartialEq, Eq, RuntimeDebug, Clone, TypeInfo, Deserialize, Serialize,
+        Encode,
+        Decode,
+        PartialEq,
+        Eq,
+        RuntimeDebug,
+        Clone,
+        TypeInfo,
+        Deserialize,
+        Serialize,
+        MaxEncodedLen,
     )]
     pub struct RegistrarInfo<Duration, Balance> {
         /// 到期的时间
@@ -231,7 +241,7 @@ pub mod pallet {
             let price = T::PriceOracle::renew_price(label_len, duration)
                 .ok_or(Error::<T>::ValueOverflow)?;
 
-            let official = T::Official::get_official_account();
+            let official = T::Official::get_official_account()?;
 
             let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
 
@@ -335,7 +345,7 @@ pub mod pallet {
                     .ok_or(Error::<T>::ValueOverflow)?;
                 T::Currency::transfer(
                     &caller,
-                    &T::Official::get_official_account(),
+                    &T::Official::get_official_account()?,
                     price,
                     ExistenceRequirement::KeepAlive,
                 )?;
@@ -425,7 +435,7 @@ pub mod pallet {
             T::Registry::reclaimed(&caller, node)?;
             RegistrarInfos::<T>::mutate(node, |info| -> DispatchResult {
                 if let Some(info) = info {
-                    let official = T::Official::get_official_account();
+                    let official = T::Official::get_official_account()?;
                     T::Currency::unreserve(&official, info.deposit);
                     T::Currency::transfer(
                         &official,
@@ -530,10 +540,11 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         node: Self::Hash,
         owner: &Self::AccountId,
     ) -> sp_runtime::DispatchResult {
+        let official = T::Official::get_official_account()?;
         RegistrarInfos::<T>::mutate_exists(node, |info| -> Option<()> {
             if let Some(info) = info {
                 T::Currency::transfer(
-                    &T::Official::get_official_account(),
+                    &official,
                     owner,
                     info.deposit,
                     frame_support::traits::ExistenceRequirement::KeepAlive,
@@ -551,7 +562,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         duration: Self::Duration,
         label: Label<Self::Hash>,
     ) -> DispatchResult {
-        let official = T::Official::get_official_account();
+        let official = T::Official::get_official_account()?;
         let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
         let expire = now + duration;
         // 防止计算结果溢出

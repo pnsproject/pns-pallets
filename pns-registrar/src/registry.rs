@@ -1,10 +1,14 @@
 pub use pallet::*;
+use sp_runtime::DispatchError;
 use sp_std::vec::Vec;
 
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::{nft, traits::Registrar};
+    use crate::{
+        nft,
+        traits::{Official as OfficialT, Registrar},
+    };
     use codec::FullCodec;
     use frame_support::pallet_prelude::*;
     use frame_support::traits::EnsureOrigin;
@@ -36,7 +40,8 @@ pub mod pallet {
             + Clone
             + Default
             + FullCodec
-            + TypeInfo;
+            + TypeInfo
+            + MaxEncodedLen;
 
         type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
     }
@@ -70,10 +75,19 @@ pub mod pallet {
     pub type Resolver<T: Config> = StorageMap<_, Twox64Concat, T::Hash, T::ResolverId, ValueQuery>;
     /// `official`
     #[pallet::storage]
-    pub type Official<T: Config> = StorageValue<_, T::AccountId, ValueQuery>;
+    pub type Official<T: Config> = StorageValue<_, T::AccountId>;
 
     #[derive(
-        Encode, Decode, PartialEq, Eq, RuntimeDebug, Clone, TypeInfo, Serialize, Deserialize,
+        Encode,
+        Decode,
+        PartialEq,
+        Eq,
+        RuntimeDebug,
+        Clone,
+        TypeInfo,
+        Serialize,
+        Deserialize,
+        MaxEncodedLen,
     )]
     pub enum DomainTracing<Hash> {
         OriginAndParent(Hash, Hash),
@@ -173,6 +187,8 @@ pub mod pallet {
         BanBurnBaseNode,
         /// ERC721: approval to current owner
         ApprovalFailure,
+        /// Pns official account is not initialized, please feedback to the official.
+        OfficialNotInitiated,
     }
 
     // helper
@@ -372,7 +388,9 @@ pub mod pallet {
                 return Err(Error::<T>::NotExist.into());
             }
 
-            nft::Pallet::<T>::transfer(&owner, &Official::<T>::get(), (class_id, token))?;
+            let official = Self::get_official_account()?;
+
+            nft::Pallet::<T>::transfer(&owner, &official, (class_id, token))?;
 
             Self::deposit_event(Event::<T>::Reclaimed(token, owner));
 
@@ -506,11 +524,13 @@ pub mod pallet {
 
             Official::<T>::put(&official);
 
-            nft::Pallet::<T>::transfer(
-                &old_official,
-                &official,
-                (T::ClassId::zero(), T::Registrar::basenode()),
-            )?;
+            if let Some(old_official) = old_official {
+                nft::Pallet::<T>::transfer(
+                    &old_official,
+                    &official,
+                    (T::ClassId::zero(), T::Registrar::basenode()),
+                )?;
+            }
 
             Ok(())
         }
@@ -653,7 +673,7 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
 impl<T: Config> crate::traits::Official for pallet::Pallet<T> {
     type AccountId = T::AccountId;
 
-    fn get_official_account() -> Self::AccountId {
-        Official::<T>::get()
+    fn get_official_account() -> Result<Self::AccountId, DispatchError> {
+        Official::<T>::get().ok_or_else(|| Error::<T>::OfficialNotInitiated.into())
     }
 }

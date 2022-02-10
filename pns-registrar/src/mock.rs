@@ -120,6 +120,7 @@ impl frame_system::Config for Test {
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
     type OnSetCode = ();
+    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 pub const OFFICIAL_ACCOUNT: AccountId = 0;
@@ -177,11 +178,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     <pallet_balances::GenesisConfig<Test> as frame_support::traits::GenesisBuild<Test>>::assimilate_storage(&balances_genesis,&mut genesis_storage).unwrap();
 
     let price_oracle_genesis = crate::price_oracle::GenesisConfig::<Test> {
-        base_prices: vec![12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-            .into_iter()
-            .map(|price| price * 100)
-            .collect(),
-        rent_prices: vec![9, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1],
+        base_prices: [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+        rent_prices: [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
         init_rate: BASE,
     };
 
@@ -296,11 +294,11 @@ impl crate::price_oracle::WeightInfo for TestWeightInfo {
         0
     }
 
-    fn set_base_price(_len: u32) -> Weight {
+    fn set_base_price() -> Weight {
         0
     }
 
-    fn set_rent_price(_len: u32) -> Weight {
+    fn set_rent_price() -> Weight {
         0
     }
 }

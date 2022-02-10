@@ -2,8 +2,11 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use frame_benchmarking::account;
+use frame_system::RawOrigin;
 use sp_runtime::traits::StaticLookup;
+use sp_runtime::SaturatedConversion;
 use sp_std::vec::Vec;
+
 pub const SEED: u32 = 996;
 
 pub fn get_rand_name(len: usize) -> Vec<u8> {
@@ -34,11 +37,17 @@ pub fn get_manager<T: crate::origin::Config>() -> T::AccountId {
 
 pub fn create_caller<T, C>(idx: u32) -> T::AccountId
 where
-    T: frame_system::Config,
+    T: frame_system::Config + pallet_balances::Config,
     C: frame_support::traits::Currency<T::AccountId>,
 {
     let caller: T::AccountId = account("caller", idx, SEED);
-    let _ = C::deposit_creating(&caller, 888_888_888_u32.into());
+    pallet_balances::Pallet::<T>::set_balance(
+        RawOrigin::Root.into(),
+        account_to_source::<T>(caller.clone()),
+        999_999_999_999_999u64.saturated_into(),
+        Default::default(),
+    )
+    .unwrap();
     caller
 }
 
@@ -130,7 +139,7 @@ mod registry {
             let official = account::<T::AccountId>("official",567,SEED);
         }: _(RawOrigin::Signed(get_manager::<T>()), official.clone())
         verify {
-            assert_eq!(crate::registry::Official::<T>::get(), official);
+            assert_eq!(crate::registry::Official::<T>::get(), Some(official));
         }
         approve_true {
             let (owner,node) = get_account_and_node::<T>("owner",567)?;
@@ -186,7 +195,7 @@ mod registrar {
     benchmarks! {
         where_clause {
             where
-            T: crate::origin::Config,
+            T: crate::origin::Config + pallet_balances::Config,
         }
         add_reserved {
             let node = get_rand_node::<T>(567);
@@ -344,10 +353,7 @@ mod price_oracle {
     use super::get_manager;
     #[cfg(test)]
     use crate::mock::Test;
-    use crate::{
-        price_oracle::{Call, Config, Pallet},
-        traits::LABEL_MAX_LEN,
-    };
+    use crate::price_oracle::{Call, Config, Pallet};
     use frame_benchmarking::benchmarks;
     use frame_system::RawOrigin;
 
@@ -362,12 +368,10 @@ mod price_oracle {
 
 
         set_base_price {
-            let l in 0..LABEL_MAX_LEN as u32;
-        }:_(RawOrigin::Signed(get_manager::<T>()),sp_std::vec![996_u32.into();l as usize])
+        }:_(RawOrigin::Signed(get_manager::<T>()),[996_u32.into();11])
 
         set_rent_price {
-            let l in 0..LABEL_MAX_LEN as u32;
-        }:_(RawOrigin::Signed(get_manager::<T>()),sp_std::vec![996_u32.into();l as usize])
+        }:_(RawOrigin::Signed(get_manager::<T>()),[996_u32.into();11])
 
         impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), Test);
     }

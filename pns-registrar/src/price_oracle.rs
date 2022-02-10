@@ -13,7 +13,6 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
     use sp_runtime::traits::AtLeast32BitUnsigned;
-    use sp_std::vec::Vec;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -48,18 +47,18 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
-    pub type BasePrice<T: Config> = StorageValue<_, Vec<BalanceOf<T>>, ValueQuery>;
+    pub type BasePrice<T: Config> = StorageValue<_, [BalanceOf<T>; 11], ValueQuery>;
 
     #[pallet::storage]
-    pub type RentPrice<T: Config> = StorageValue<_, Vec<BalanceOf<T>>, ValueQuery>;
+    pub type RentPrice<T: Config> = StorageValue<_, [BalanceOf<T>; 11], ValueQuery>;
 
     #[pallet::storage]
     pub type ExchangeRate<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
-        pub base_prices: Vec<BalanceOf<T>>,
-        pub rent_prices: Vec<BalanceOf<T>>,
+        pub base_prices: [BalanceOf<T>; 11],
+        pub rent_prices: [BalanceOf<T>; 11],
         pub init_rate: BalanceOf<T>,
     }
 
@@ -67,8 +66,8 @@ pub mod pallet {
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             GenesisConfig {
-                base_prices: vec![],
-                rent_prices: vec![],
+                base_prices: [Default::default(); 11],
+                rent_prices: [Default::default(); 11],
                 init_rate: Default::default(),
             }
         }
@@ -88,10 +87,10 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Base praice changed
         /// `[base_prices]`
-        BasePriceChanged(Vec<BalanceOf<T>>),
+        BasePriceChanged([BalanceOf<T>; 11]),
         /// Rent price changed
         /// `[rent_prices]`
-        RentPriceChanged(Vec<BalanceOf<T>>),
+        RentPriceChanged([BalanceOf<T>; 11]),
         ExchangeRateChanged(T::AccountId, BalanceOf<T>),
     }
 
@@ -117,8 +116,8 @@ pub mod pallet {
             Ok(())
         }
         /// Internal root method.
-        #[pallet::weight(T::WeightInfo::set_base_price(prices.len() as u32))]
-        pub fn set_base_price(origin: OriginFor<T>, prices: Vec<BalanceOf<T>>) -> DispatchResult {
+        #[pallet::weight(T::WeightInfo::set_base_price())]
+        pub fn set_base_price(origin: OriginFor<T>, prices: [BalanceOf<T>; 11]) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
             <BasePrice<T>>::put(&prices);
@@ -128,8 +127,8 @@ pub mod pallet {
             Ok(())
         }
         /// Internal root method.
-        #[pallet::weight(T::WeightInfo::set_rent_price(prices.len() as u32))]
-        pub fn set_rent_price(origin: OriginFor<T>, prices: Vec<BalanceOf<T>>) -> DispatchResult {
+        #[pallet::weight(T::WeightInfo::set_rent_price())]
+        pub fn set_rent_price(origin: OriginFor<T>, prices: [BalanceOf<T>; 11]) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
             <RentPrice<T>>::put(&prices);
@@ -149,8 +148,8 @@ use sp_runtime::{
 
 pub trait WeightInfo {
     fn set_exchange_rate() -> Weight;
-    fn set_base_price(len: u32) -> Weight;
-    fn set_rent_price(len: u32) -> Weight;
+    fn set_base_price() -> Weight;
+    fn set_rent_price() -> Weight;
 }
 
 impl<T: Config> PriceOracle for Pallet<T> {

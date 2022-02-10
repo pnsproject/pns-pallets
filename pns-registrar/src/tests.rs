@@ -2,9 +2,8 @@ use crate::*;
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok};
 use mock::*;
-use pns_resolvers::resolvers::{AddressKind, TextKind};
+use pns_resolvers::resolvers::{AddressKind, MultiAddress, TextKind};
 use sp_runtime::testing::TestSignature;
-use sp_runtime::MultiAddress;
 use traits::Label;
 
 const DAYS: u64 = 24 * 60 * 60;
@@ -426,59 +425,53 @@ fn resolvers_test() {
             AddressKind::Ethereum,
             MultiAddress::Address20([4; 20])
         ));
-        assert_ok!(Resolvers::set_account(
-            Origin::signed(MONEY_ACCOUNT),
-            node,
-            AddressKind::Bitcoin,
-            MultiAddress::Raw([7; 23].to_vec())
-        ));
         assert_ok!(Resolvers::set_text(
             Origin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Email,
-            b"cupnfish@qq.com".to_vec(),
+            b"cupnfish@qq.com".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
             Origin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Url,
-            b"www.baidu.com".to_vec(),
+            b"www.baidu.com".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
             Origin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Avatar,
-            b"cupnfish".to_vec(),
+            b"cupnfish".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
             Origin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Description,
-            b"A Rust programer.".to_vec(),
+            b"A Rust programer.".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
             Origin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Notice,
-            b"test notice".to_vec(),
+            b"test notice".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
             Origin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Keywords,
-            b"test,key,words,show".to_vec(),
+            b"test,key,words,show".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
             Origin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Twitter,
-            b"twitter address".to_vec(),
+            b"twitter address".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
             Origin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Github,
-            b"github homepage".to_vec(),
+            b"github homepage".to_vec().into(),
         ));
         assert_noop!(
             Resolvers::set_account(

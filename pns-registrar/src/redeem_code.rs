@@ -166,7 +166,7 @@ pub mod pallet {
             let label_node = label.node;
             let data = (label_node, duration, nouce).encode();
 
-            let signer = T::Official::get_official_account();
+            let signer = T::Official::get_official_account()?;
 
             ensure!(
                 code.verify(&data[..], &signer),
@@ -218,7 +218,7 @@ pub mod pallet {
 
             let data = (duration, nouce).encode();
 
-            let signer = T::Official::get_official_account();
+            let signer = T::Official::get_official_account()?;
 
             ensure!(
                 code.verify(&data[..], &signer),

@@ -19,7 +19,6 @@
 //! - `destroy_class` - Destroy NFT(non fungible token) class
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use core::convert::TryInto;
 use frame_support::{ensure, pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use scale_info::TypeInfo;
 use sp_runtime::{
@@ -29,8 +28,6 @@ use sp_runtime::{
     ArithmeticError, DispatchError, DispatchResult, RuntimeDebug,
 };
 use sp_std::vec::Vec;
-// mod mock;
-// mod tests;
 
 /// Class info
 #[derive(Encode, Decode, Clone, Eq, PartialEq, MaxEncodedLen, RuntimeDebug, TypeInfo)]
@@ -66,8 +63,6 @@ pub mod module {
     pub trait Config: frame_system::Config {
         /// The class ID type
         type ClassId: Parameter + Member + AtLeast32BitUnsigned + Default + Copy;
-        /// The token ID type
-        type TokenId: Parameter + Member + Default + Copy + MaybeSerializeDeserialize;
         /// The total ID type
         type TotalId: Parameter
             + Member
@@ -75,6 +70,8 @@ pub mod module {
             + Default
             + Copy
             + MaybeSerializeDeserialize;
+        /// The token ID type
+        type TokenId: Parameter + Member + Default + Copy + MaybeSerializeDeserialize;
         /// The class properties type
         type ClassData: Parameter + Member + MaybeSerializeDeserialize;
         /// The token properties type
@@ -103,7 +100,7 @@ pub mod module {
         <T as frame_system::Config>::AccountId, // Token owner
         Vec<u8>,                                // Token metadata
         <T as Config>::TokenData,
-        <T as Config>::TokenId, // Token id
+        <T as Config>::TokenId,
     );
     pub type GenesisTokens<T> = (
         <T as frame_system::Config>::AccountId, // Token class owner
@@ -117,6 +114,7 @@ pub mod module {
     pub enum Error<T> {
         /// No available class ID
         NoAvailableClassId,
+
         /// Token(ClassId, TokenId) not found
         TokenNotFound,
         /// Class not found
@@ -129,14 +127,11 @@ pub mod module {
         /// Failed because the Maximum amount of metadata was exceeded
         MaxMetadataExceeded,
     }
-    /// -> `class_id`
-    ///
+
     /// Next available class ID.
     #[pallet::storage]
     #[pallet::getter(fn next_class_id)]
     pub type NextClassId<T: Config> = StorageValue<_, T::ClassId, ValueQuery>;
-    /// [`class_id`: 0] -> `class_info`
-    ///
     /// Store class info.
     ///
     /// Returns `None` if class info not set or removed.
@@ -144,8 +139,6 @@ pub mod module {
     #[pallet::getter(fn classes)]
     pub type Classes<T: Config> = StorageMap<_, Twox64Concat, T::ClassId, ClassInfoOf<T>>;
 
-    /// [`class_id`: 0,'name_hash'] -> `token_info`
-    ///
     /// Store token info.
     ///
     /// Returns `None` if token info not set or removed.
@@ -154,11 +147,8 @@ pub mod module {
     pub type Tokens<T: Config> =
         StorageDoubleMap<_, Twox64Concat, T::ClassId, Twox64Concat, T::TokenId, TokenInfoOf<T>>;
 
-    /// [`owner`,`class_id`: 0,`name_hash`] -> ()
-    ///
     /// Token existence check by owner and class ID.
     #[pallet::storage]
-    #[pallet::getter(fn tokens_by_owner)]
     pub type TokensByOwner<T: Config> = StorageNMap<
         _,
         (
@@ -206,6 +196,8 @@ pub mod module {
     }
 
     #[pallet::pallet]
+    #[pallet::generate_store(pub(super) trait Store)]
+    #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
 
     #[pallet::hooks]
@@ -216,13 +208,6 @@ pub mod module {
 }
 
 impl<T: Config> Pallet<T> {
-    /// To get token from owner and class
-    pub fn token_form_prefix(
-        owner: T::AccountId,
-        class: T::ClassId,
-    ) -> sp_std::vec::Vec<T::TokenId> {
-        TokensByOwner::<T>::iter_key_prefix((owner, class)).collect()
-    }
     /// Create NFT(non fungible token) class
     pub fn create_class(
         owner: &T::AccountId,
@@ -302,7 +287,6 @@ impl<T: Config> Pallet<T> {
             owner: owner.clone(),
             data,
         };
-
         Tokens::<T>::insert(class_id, token_id, token_info);
         TokensByOwner::<T>::insert((owner, class_id, token_id), ());
 
