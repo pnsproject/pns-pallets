@@ -1,7 +1,7 @@
 //! Benchmarking setup for pns-pallets
 #![cfg(feature = "runtime-benchmarks")]
 
-use crate::resolvers::{AddressKind, Call, Config, Pallet, TextKind};
+use crate::resolvers::{AddressKind, Call, Config, Content, MultiAddress, Pallet, TextKind};
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_support::traits::Get;
@@ -18,12 +18,13 @@ benchmarks! {
 
     set_account {
         let (owner,node) = get_cupnfishu_node::<T>()?;
-    }: _(RawOrigin::Signed(owner),node.into(),AddressKind::Substrate,Default::default())
+        let address = MultiAddress::<T::AccountId>::Id(owner.clone());
+    }: _(RawOrigin::Signed(owner.clone()),node.into(),AddressKind::Substrate,address)
 
     set_text {
-        let l in 0..10_000;
+        let l in 0..1024;
         let (owner,node) = get_cupnfishu_node::<T>()?;
-        let data = sp_std::vec![7;l as usize];
+        let data = Content(sp_std::vec![7;l as usize]);
     }: _(RawOrigin::Signed(owner), node.into(),TextKind::Email,data)
 }
 

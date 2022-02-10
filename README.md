@@ -11,3 +11,9 @@ pns-resolvers:
 ```shell 
 cargo build --package pns-resolvers --lib --all-features
 ```
+
+cargo build:
+
+```shell
+cargo build --no-default-features --features runtime-benchmarks 
+```

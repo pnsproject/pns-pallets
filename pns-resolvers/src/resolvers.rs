@@ -268,7 +268,7 @@ pub struct Content(pub Vec<u8>);
 
 impl MaxEncodedLen for Content {
     fn max_encoded_len() -> usize {
-        512
+        1024
     }
 }
 
