@@ -2,6 +2,7 @@ use core::marker::PhantomData;
 
 use frame_support::dispatch::Weight;
 use frame_support::traits::Get;
+use sp_std::vec::Vec;
 
 use crate::{nft, origin, price_oracle, registry};
 
