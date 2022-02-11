@@ -79,6 +79,8 @@ features = ["derive"]
 [dependencies.pallet-balances]
 git = 'https://github.com/paritytech/substrate.git'
 branch = "polkadot-v0.9.16"
+default-features = false
+
 
 [dev-dependencies.pallet-timestamp]
 git = 'https://github.com/paritytech/substrate.git'
