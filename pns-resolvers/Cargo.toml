@@ -36,10 +36,10 @@ branch = "polkadot-v0.9.16"
 
 
 [dependencies.codec]
+package = "parity-scale-codec"
+version = "2.3.0"
 default-features = false
-features = ['derive']
-package = 'parity-scale-codec'
-version = '2.0.0'
+features = ["derive", "max-encoded-len"]
 
 [dependencies.frame-benchmarking]
 default-features = false
@@ -68,7 +68,7 @@ features = ["derive"]
 
 [dependencies.serde]
 default-features = false
-version = '1.0.131'
+version = '1.0'
 features = ["derive", "alloc"]
 
 [dependencies.pns-registrar]
