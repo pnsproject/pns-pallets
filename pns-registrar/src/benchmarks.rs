@@ -2,9 +2,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use frame_benchmarking::account;
-use frame_system::RawOrigin;
 use sp_runtime::traits::StaticLookup;
-use sp_runtime::SaturatedConversion;
 use sp_std::vec::Vec;
 
 pub const SEED: u32 = 996;
@@ -33,22 +31,6 @@ pub fn account_to_source<T: frame_system::Config>(
 
 pub fn get_manager<T: crate::origin::Config>() -> T::AccountId {
     crate::origin::Origins::<T>::iter_keys().next().unwrap()
-}
-
-pub fn create_caller<T, C>(idx: u32) -> T::AccountId
-where
-    T: frame_system::Config + pallet_balances::Config,
-    C: frame_support::traits::Currency<T::AccountId>,
-{
-    let caller: T::AccountId = account("caller", idx, SEED);
-    pallet_balances::Pallet::<T>::set_balance(
-        RawOrigin::Root.into(),
-        account_to_source::<T>(caller.clone()),
-        999_999_999_999_999u64.saturated_into(),
-        Default::default(),
-    )
-    .unwrap();
-    caller
 }
 
 pub fn poor_account<T: frame_system::Config>(idx: u32) -> T::AccountId {
@@ -161,17 +143,33 @@ mod registry {
 }
 
 mod registrar {
-    use super::{account_to_source, create_caller, get_manager, get_rand_name, name_to_node};
+    use super::{account_to_source, get_manager, get_rand_name, name_to_node, SEED};
     #[cfg(test)]
     use crate::mock::Test;
     use crate::{
         registrar::{Call, Config, Pallet},
         traits::{Label, Registrar, LABEL_MAX_LEN, LABEL_MIN_LEN},
     };
-    use frame_benchmarking::benchmarks;
+    use frame_benchmarking::{account, benchmarks};
     use frame_support::traits::{Currency, Get};
     use frame_system::RawOrigin;
+    use sp_runtime::SaturatedConversion;
     use sp_std::vec::Vec;
+
+    pub fn create_caller<T>(idx: u32) -> T::AccountId
+    where
+        T: frame_system::Config + pallet_balances::Config,
+    {
+        let caller: T::AccountId = account("caller", idx, SEED);
+        pallet_balances::Pallet::<T>::set_balance(
+            RawOrigin::Root.into(),
+            account_to_source::<T>(caller.clone()),
+            999_999_999_999_999u64.saturated_into(),
+            Default::default(),
+        )
+        .unwrap();
+        caller
+    }
 
     fn get_rand_node<T: Config>(seed: u32) -> T::Hash {
         let name = alloc::format!("rand{seed}");
@@ -217,7 +215,7 @@ mod registrar {
             // l is length of name.
             let l in 0..(LABEL_MAX_LEN as u32);
             let name = get_rand_name(l as usize);
-            let rich_account = create_caller::<T,T::Currency>(8);
+            let rich_account = create_caller::<T>(8);
             let source = account_to_source::<T>(rich_account.clone());
         }:_(RawOrigin::Signed(rich_account), name.clone(),source,T::MinRegistrationDuration::get())
         verify {
@@ -228,7 +226,7 @@ mod registrar {
             // l is length of name.
             let l in 0..(LABEL_MAX_LEN as u32);
             let name = get_rand_name(l as usize);
-            let rich_account = create_caller::<T,T::Currency>(8);
+            let rich_account = create_caller::<T>(8);
             let clone_rich = rich_account.clone();
             T::Currency::deposit_creating(&clone_rich,u32::MAX.into());
             Pallet::<T>::register(RawOrigin::Signed(clone_rich).into(), name.clone(),account_to_source::<T>(rich_account.clone()),T::MinRegistrationDuration::get())?;
@@ -238,9 +236,9 @@ mod registrar {
         set_owner {
             let name = get_rand_name(15);
             let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get()).into();
-            let rich_account = create_caller::<T,T::Currency>(8);
+            let rich_account = create_caller::<T>(8);
             let clone_rich = rich_account.clone();
-            let to_account = create_caller::<T,T::Currency>(2);
+            let to_account = create_caller::<T>(2);
             Pallet::<T>::register(RawOrigin::Signed(clone_rich).into(), name,account_to_source::<T>(rich_account.clone()),T::MinRegistrationDuration::get())?;
         }:_(RawOrigin::Signed(rich_account),account_to_source::<T>(to_account.clone()),hash)
 
@@ -249,7 +247,7 @@ mod registrar {
             let l in  0..(LABEL_MAX_LEN as u32);
             let name = get_rand_name(15);
             let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get()).into();
-            let rich_account = create_caller::<T,T::Currency>(8);
+            let rich_account = create_caller::<T>(8);
             let clone_rich = rich_account.clone();
             Pallet::<T>::register(RawOrigin::Signed(clone_rich).into(), name,account_to_source::<T>(rich_account.clone()),T::MinRegistrationDuration::get())?;
             let subname = get_subname(l as usize);
@@ -261,7 +259,7 @@ mod registrar {
         reclaimed {
             let name = get_rand_name(15);
             let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get()).into();
-            let rich_account = create_caller::<T,T::Currency>(8);
+            let rich_account = create_caller::<T>(8);
             let clone_rich = rich_account.clone();
             Pallet::<T>::register(RawOrigin::Signed(clone_rich).into(), name,account_to_source::<T>(rich_account.clone()),T::MinRegistrationDuration::get())?;
         }:_(RawOrigin::Signed(rich_account),hash)

@@ -98,10 +98,9 @@ path = "../pns-resolvers"
 [features]
 default = ['std']
 runtime-benchmarks = [
-    'frame-benchmarking',
+    'frame-benchmarking/runtime-benchmarks',
     'frame-support/runtime-benchmarks',
     'frame-system/runtime-benchmarks',
-    'pallet-balances/runtime-benchmarks',
 ]
 std = [
     'codec/std',
