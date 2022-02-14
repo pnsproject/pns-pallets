@@ -107,6 +107,7 @@ pub struct Label<Hash> {
 }
 pub const LABEL_MAX_LEN: usize = 64;
 pub const LABEL_MIN_LEN: usize = 3;
+pub const MIN_REGISTRABLE_LEN: usize = 10;
 
 impl<Hash> Label<Hash>
 where
@@ -163,11 +164,11 @@ pub trait Available {
 
 impl Available for usize {
     fn is_anctionable(&self) -> bool {
-        *self > LABEL_MIN_LEN && *self < 10
+        *self > LABEL_MIN_LEN && *self < MIN_REGISTRABLE_LEN
     }
 
     fn is_registrable(&self) -> bool {
-        *self > 9
+        *self >= MIN_REGISTRABLE_LEN
     }
 }
 

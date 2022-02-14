@@ -240,17 +240,19 @@ pub mod pallet {
 
 use frame_support::dispatch::Weight;
 
+use crate::traits::{LABEL_MIN_LEN, MIN_REGISTRABLE_LEN};
+
 pub trait WeightInfo {
     fn mint_redeem(len: u32) -> Weight;
     fn name_redeem(len: u32) -> Weight {
-        Self::create_label(len) + Self::for_redeem_code(len) + Self::name_redeem_min()
-            - Self::create_label(3)
-            - Self::for_redeem_code(3)
+        Self::create_label(len - LABEL_MIN_LEN as u32)
+            + Self::for_redeem_code(len - LABEL_MIN_LEN as u32)
+            + Self::name_redeem_min()
     }
     fn name_redeem_any(len: u32) -> Weight {
-        Self::create_label(len) + Self::for_redeem_code(len) + Self::name_redeem_any_min()
-            - Self::create_label(10)
-            - Self::for_redeem_code(10)
+        Self::create_label(len - MIN_REGISTRABLE_LEN as u32)
+            + Self::for_redeem_code(len - MIN_REGISTRABLE_LEN as u32)
+            + Self::name_redeem_any_min()
     }
     fn create_label(len: u32) -> Weight;
     fn for_redeem_code(len: u32) -> Weight;

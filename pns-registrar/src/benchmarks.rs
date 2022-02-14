@@ -273,7 +273,7 @@ mod redeem_code {
     use crate::traits::Registrar;
     use crate::{
         redeem_code::{Call, Config, Pallet},
-        traits::{Label, LABEL_MAX_LEN},
+        traits::{Label, LABEL_MAX_LEN, LABEL_MIN_LEN, MIN_REGISTRABLE_LEN},
     };
     use codec::Decode;
     use frame_benchmarking::benchmarks;
@@ -291,7 +291,7 @@ mod redeem_code {
         }:_(RawOrigin::Signed(get_manager::<T>()),0,l)
 
         name_redeem_min {
-            let name = sp_std::vec![104, 120, 120];
+            let name = sp_std::vec![100; LABEL_MIN_LEN];
             let duration = T::Moment::from(31536000_u32);
             let nouce = 5;
             let signature = T::Signature::decode(&mut &sp_std::vec![0, 229, 199, 81, 157, 241, 4, 157, 210, 38, 135, 222, 235, 38, 34, 192, 103, 30, 22, 80, 103, 169, 1, 150, 27, 177, 180, 162, 166, 18, 199, 178, 147, 115, 83, 174, 148, 221, 52, 101, 44, 22, 46, 84, 126, 48, 154, 45, 106, 125, 139, 217, 17, 59, 243, 210, 11, 77, 46, 200, 216, 98, 238, 110, 8][..]).unwrap();
@@ -305,7 +305,7 @@ mod redeem_code {
         }:name_redeem(RawOrigin::Signed(poor_account7),name,duration,nouce,signature,poor_account77)
 
         name_redeem_any_min {
-            let name = sp_std::vec![99, 117, 112, 110, 102, 105, 115, 104, 120, 120];
+            let name = sp_std::vec![99; MIN_REGISTRABLE_LEN];
             let duration = T::Moment::from(31536000_u32);
             let nouce = 5;
             let signature = T::Signature::decode(&mut &sp_std::vec![0, 182, 166, 0, 120, 22, 9, 41, 218, 6, 241, 55, 33, 5, 184, 6, 196, 87, 25, 50, 80, 73, 5, 245, 146, 120, 185, 202, 248, 52, 213, 24, 175, 10, 58, 41, 114, 237, 190, 72, 138, 70, 221, 151, 104, 249, 219, 191, 135, 243, 221, 29, 240, 231, 197, 177, 246, 248, 213, 114, 169, 60, 99, 167, 2][..]).unwrap();
