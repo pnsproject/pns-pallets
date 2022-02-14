@@ -18,7 +18,10 @@ pub mod pallet {
     use frame_system::{ensure_signed, pallet_prelude::*};
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
-    use sp_runtime::traits::{AtLeast32BitUnsigned, MaybeSerializeDeserialize, StaticLookup};
+    use sp_runtime::traits::{
+        AtLeast32BitUnsigned, CheckedAdd, MaybeSerializeDeserialize, StaticLookup,
+    };
+    use sp_runtime::ArithmeticError;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -160,10 +163,6 @@ pub mod pallet {
         NotOwned,
         /// The node is still occupied and cannot be registered.
         Occupied,
-        /// The time used to calculate the expire overflowed.
-        TimeOverflow,
-        /// The value used to calculate the fee overflowed.
-        ValueOverflow,
         /// You are processing a subdomain or the domain which does not exist.
         /// Or you are registering an occupied subdomain.
         NotExistOrOccupied,
@@ -239,17 +238,20 @@ pub mod pallet {
             ensure!(label_len.is_registrable(), Error::<T>::LabelInvalid);
 
             let price = T::PriceOracle::renew_price(label_len, duration)
-                .ok_or(Error::<T>::ValueOverflow)?;
+                .ok_or(ArithmeticError::Overflow)?;
 
             let official = T::Official::get_official_account()?;
 
             let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
 
-            let expire = now + duration;
+            let expire = now
+                .checked_add(&duration)
+                .ok_or(ArithmeticError::Overflow)?;
+
             // 防止计算结果溢出
             ensure!(
                 expire + T::GracePeriod::get() > now + T::GracePeriod::get(),
-                Error::<T>::TimeOverflow
+                ArithmeticError::Overflow
             );
             let base_node = T::BaseNode::get();
             let label_node = label.encode_with_basenode(base_node);
@@ -267,10 +269,14 @@ pub mod pallet {
                 0,
                 |maybe_pre_owner| -> DispatchResult {
                     let register_fee =
-                        T::PriceOracle::register_fee(label_len).ok_or(Error::<T>::ValueOverflow)?;
+                        T::PriceOracle::register_fee(label_len).ok_or(ArithmeticError::Overflow)?;
                     let deposit =
-                        T::PriceOracle::deposit_fee(label_len).ok_or(Error::<T>::ValueOverflow)?;
-                    let target_value = price + register_fee + deposit;
+                        T::PriceOracle::deposit_fee(label_len).ok_or(ArithmeticError::Overflow)?;
+                    let target_value = price
+                        .checked_add(&register_fee)
+                        .and_then(|fee| fee.checked_add(&deposit))
+                        .ok_or(ArithmeticError::Overflow)?;
+
                     T::Currency::transfer(
                         &caller,
                         &official,
@@ -336,13 +342,15 @@ pub mod pallet {
                 let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
                 let grace_period = T::GracePeriod::get();
                 ensure!(now <= expire + grace_period, Error::<T>::NotRenewable);
-                let target_expire = expire + duration;
+                let target_expire = expire
+                    .checked_add(&duration)
+                    .ok_or(ArithmeticError::Overflow)?;
                 ensure!(
                     target_expire + grace_period > now + grace_period,
-                    Error::<T>::TimeOverflow
+                    ArithmeticError::Overflow
                 );
                 let price = T::PriceOracle::renew_price(label_len, duration)
-                    .ok_or(Error::<T>::ValueOverflow)?;
+                    .ok_or(ArithmeticError::Overflow)?;
                 T::Currency::transfer(
                     &caller,
                     &T::Official::get_official_account()?,
@@ -459,7 +467,10 @@ use frame_support::{
     dispatch::{DispatchResult, Weight},
     traits::{Currency, Get, UnixTime},
 };
-use sp_runtime::traits::Zero;
+use sp_runtime::{
+    traits::{CheckedAdd, Zero},
+    ArithmeticError,
+};
 use sp_std::vec::Vec;
 
 pub trait WeightInfo {
@@ -564,11 +575,13 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     ) -> DispatchResult {
         let official = T::Official::get_official_account()?;
         let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
-        let expire = now + duration;
+        let expire = now
+            .checked_add(&duration)
+            .ok_or(ArithmeticError::Overflow)?;
         // 防止计算结果溢出
         frame_support::ensure!(
             expire + T::GracePeriod::get() > now + T::GracePeriod::get(),
-            Error::<T>::TimeOverflow
+            ArithmeticError::Overflow
         );
         let base_node = T::BaseNode::get();
         let label_node = label.encode_with_basenode(base_node);
