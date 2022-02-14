@@ -17,3 +17,9 @@ cargo build:
 ```shell
 cargo build --no-default-features --features runtime-benchmarks 
 ```
+
+cargo clippy:
+
+```shell
+cargo clippy --no-default-features --features runtime-benchmarks
+```

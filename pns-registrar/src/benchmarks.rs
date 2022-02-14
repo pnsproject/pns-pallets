@@ -1,18 +1,22 @@
 //! Benchmarking setup for pns-pallets
 #![cfg(feature = "runtime-benchmarks")]
 
+use crate::traits::{LABEL_MAX_LEN, LABEL_MIN_LEN, MIN_REGISTRABLE_LEN};
 use frame_benchmarking::account;
 use sp_runtime::traits::StaticLookup;
 use sp_std::vec::Vec;
 
 pub const SEED: u32 = 996;
+pub const U32_LABEL_MAX_LEN: u32 = LABEL_MAX_LEN as u32;
+pub const U32_LABEL_MIN_LEN: u32 = LABEL_MIN_LEN as u32;
+pub const U32_MIN_REGISTRABLE_LEN: u32 = MIN_REGISTRABLE_LEN as u32;
 
-pub fn get_rand_name(len: usize) -> Vec<u8> {
-    let mut name = "cupnfishxx".to_ascii_lowercase();
-    for _ in 10..len {
-        name.push_str("x");
-    }
-    name.into_bytes()
+fn get_name(len: usize) -> sp_std::vec::Vec<u8> {
+    let mut res = alloc::string::String::with_capacity(len);
+    (0..len).for_each(|_| {
+        res.push('x');
+    });
+    res.into_bytes()
 }
 
 pub fn name_to_node<H>(name: Vec<u8>, basenode: H) -> H
@@ -72,7 +76,7 @@ mod registry {
         )?;
         use crate::registry::DomainTracing;
         use crate::registry::Origin;
-        if let Some(_) = Origin::<T>::get(T::Registrar::basenode()) {
+        if Origin::<T>::get(T::Registrar::basenode()).is_some() {
             panic!("Unexpected arm");
         } else {
             Pallet::<T>::add_children(T::Registrar::basenode(), class_id)?;
@@ -128,7 +132,7 @@ mod registry {
             let to = account::<T::AccountId>("to",996,SEED);
         }: approve(RawOrigin::Signed(owner), to.clone(),node,true)
         verify {
-            assert!(crate::registry::TokenApprovals::<T>::contains_key(node,to.clone()));
+            assert!(crate::registry::TokenApprovals::<T>::contains_key(node,to));
         }
         approve_false {
             let (owner,node) = get_account_and_node::<T>("owner",567)?;
@@ -143,18 +147,20 @@ mod registry {
 }
 
 mod registrar {
-    use super::{account_to_source, get_manager, get_rand_name, name_to_node, SEED};
+    use super::{
+        account_to_source, get_manager, get_name, name_to_node, SEED, U32_LABEL_MAX_LEN,
+        U32_LABEL_MIN_LEN, U32_MIN_REGISTRABLE_LEN,
+    };
     #[cfg(test)]
     use crate::mock::Test;
     use crate::{
         registrar::{Call, Config, Pallet},
-        traits::{Label, Registrar, LABEL_MAX_LEN, LABEL_MIN_LEN},
+        traits::{Label, Registrar, MIN_REGISTRABLE_LEN},
     };
     use frame_benchmarking::{account, benchmarks};
     use frame_support::traits::{Currency, Get};
     use frame_system::RawOrigin;
     use sp_runtime::SaturatedConversion;
-    use sp_std::vec::Vec;
 
     pub fn create_caller<T>(idx: u32) -> T::AccountId
     where
@@ -175,14 +181,6 @@ mod registrar {
         let name = alloc::format!("rand{seed}");
         let label = Label::<T::Hash>::new(name.as_bytes()).unwrap().0;
         label.node
-    }
-
-    fn get_subname(len: usize) -> Vec<u8> {
-        let mut name = "abc".to_ascii_lowercase();
-        for _ in LABEL_MIN_LEN..len {
-            name.push_str("x");
-        }
-        name.into_bytes()
     }
 
     fn get_subhash<T: Config>(subname: &[u8], node: T::Hash) -> T::Hash {
@@ -213,19 +211,19 @@ mod registrar {
         }
         register {
             // l is length of name.
-            let l in 0..(LABEL_MAX_LEN as u32);
-            let name = get_rand_name(l as usize);
+            let l in U32_MIN_REGISTRABLE_LEN..U32_LABEL_MAX_LEN;
+            let name = get_name(l as usize);
             let rich_account = create_caller::<T>(8);
             let source = account_to_source::<T>(rich_account.clone());
         }:_(RawOrigin::Signed(rich_account), name.clone(),source,T::MinRegistrationDuration::get())
         verify {
-            assert!(Pallet::<T>::check_expires_renewable(name_to_node::<T::Hash>(name,T::BaseNode::get()).into()).is_ok());
+            assert!(Pallet::<T>::check_expires_renewable(name_to_node::<T::Hash>(name,T::BaseNode::get())).is_ok());
         }
 
         renew {
             // l is length of name.
-            let l in 0..(LABEL_MAX_LEN as u32);
-            let name = get_rand_name(l as usize);
+            let l in U32_LABEL_MIN_LEN..U32_LABEL_MAX_LEN;
+            let name = get_name(l as usize);
             let rich_account = create_caller::<T>(8);
             let clone_rich = rich_account.clone();
             T::Currency::deposit_creating(&clone_rich,u32::MAX.into());
@@ -234,31 +232,31 @@ mod registrar {
 
 
         set_owner {
-            let name = get_rand_name(15);
-            let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get()).into();
+            let name = get_name(MIN_REGISTRABLE_LEN);
+            let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get());
             let rich_account = create_caller::<T>(8);
             let clone_rich = rich_account.clone();
             let to_account = create_caller::<T>(2);
             Pallet::<T>::register(RawOrigin::Signed(clone_rich).into(), name,account_to_source::<T>(rich_account.clone()),T::MinRegistrationDuration::get())?;
-        }:_(RawOrigin::Signed(rich_account),account_to_source::<T>(to_account.clone()),hash)
+        }:_(RawOrigin::Signed(rich_account),account_to_source::<T>(to_account),hash)
 
 
         mint_subname {
-            let l in  0..(LABEL_MAX_LEN as u32);
-            let name = get_rand_name(15);
-            let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get()).into();
+            let l in  U32_LABEL_MIN_LEN..U32_LABEL_MAX_LEN;
+            let name = get_name(MIN_REGISTRABLE_LEN);
+            let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get());
             let rich_account = create_caller::<T>(8);
             let clone_rich = rich_account.clone();
             Pallet::<T>::register(RawOrigin::Signed(clone_rich).into(), name,account_to_source::<T>(rich_account.clone()),T::MinRegistrationDuration::get())?;
-            let subname = get_subname(l as usize);
+            let subname = get_name(l as usize);
             let subhash = get_subhash::<T>(&subname,hash);
             let clone_rich = rich_account.clone();
         }:_(RawOrigin::Signed(clone_rich),hash,subname,account_to_source::<T>(rich_account))
 
 
         reclaimed {
-            let name = get_rand_name(15);
-            let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get()).into();
+            let name = get_name(MIN_REGISTRABLE_LEN);
+            let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get());
             let rich_account = create_caller::<T>(8);
             let clone_rich = rich_account.clone();
             Pallet::<T>::register(RawOrigin::Signed(clone_rich).into(), name,account_to_source::<T>(rich_account.clone()),T::MinRegistrationDuration::get())?;
@@ -269,11 +267,13 @@ mod registrar {
 }
 
 mod redeem_code {
-    use super::{get_manager, name_to_node, poor_account};
+    use super::{
+        get_manager, get_name, name_to_node, poor_account, U32_LABEL_MAX_LEN, U32_LABEL_MIN_LEN,
+    };
     use crate::traits::Registrar;
     use crate::{
         redeem_code::{Call, Config, Pallet},
-        traits::{Label, LABEL_MAX_LEN, LABEL_MIN_LEN, MIN_REGISTRABLE_LEN},
+        traits::{Label, LABEL_MIN_LEN, MIN_REGISTRABLE_LEN},
     };
     use codec::Decode;
     use frame_benchmarking::benchmarks;
@@ -291,7 +291,7 @@ mod redeem_code {
         }:_(RawOrigin::Signed(get_manager::<T>()),0,l)
 
         name_redeem_min {
-            let name = sp_std::vec![100; LABEL_MIN_LEN];
+            let name = get_name(LABEL_MIN_LEN);
             let duration = T::Moment::from(31536000_u32);
             let nouce = 5;
             let signature = T::Signature::decode(&mut &sp_std::vec![0, 229, 199, 81, 157, 241, 4, 157, 210, 38, 135, 222, 235, 38, 34, 192, 103, 30, 22, 80, 103, 169, 1, 150, 27, 177, 180, 162, 166, 18, 199, 178, 147, 115, 83, 174, 148, 221, 52, 101, 44, 22, 46, 84, 126, 48, 154, 45, 106, 125, 139, 217, 17, 59, 243, 210, 11, 77, 46, 200, 216, 98, 238, 110, 8][..]).unwrap();
@@ -305,7 +305,7 @@ mod redeem_code {
         }:name_redeem(RawOrigin::Signed(poor_account7),name,duration,nouce,signature,poor_account77)
 
         name_redeem_any_min {
-            let name = sp_std::vec![99; MIN_REGISTRABLE_LEN];
+            let name = get_name(MIN_REGISTRABLE_LEN);
             let duration = T::Moment::from(31536000_u32);
             let nouce = 5;
             let signature = T::Signature::decode(&mut &sp_std::vec![0, 182, 166, 0, 120, 22, 9, 41, 218, 6, 241, 55, 33, 5, 184, 6, 196, 87, 25, 50, 80, 73, 5, 245, 146, 120, 185, 202, 248, 52, 213, 24, 175, 10, 58, 41, 114, 237, 190, 72, 138, 70, 221, 151, 104, 249, 219, 191, 135, 243, 221, 29, 240, 231, 197, 177, 246, 248, 213, 114, 169, 60, 99, 167, 2][..]).unwrap();
@@ -319,10 +319,10 @@ mod redeem_code {
         }:name_redeem_any(RawOrigin::Signed(poor_account7),name,duration,nouce,signature,poor_account77)
 
         create_label {
-            let l in 3..LABEL_MAX_LEN as u32;
+            let l in U32_LABEL_MIN_LEN..U32_LABEL_MAX_LEN;
             let mut name = "hxx".to_ascii_lowercase();
-            for _ in 3..l {
-                name.push_str("x");
+            for _ in U32_LABEL_MIN_LEN..l {
+                name.push('x');
             }
             let data = name.into_bytes();
         }: {
@@ -330,15 +330,15 @@ mod redeem_code {
         }
 
         for_redeem_code {
-            let l in 3..LABEL_MAX_LEN as u32;
+            let l in U32_LABEL_MIN_LEN..U32_LABEL_MAX_LEN;
             let mut name = "hxx".to_ascii_lowercase();
-            for _ in 3..l {
-                name.push_str("x");
+            for _ in U32_LABEL_MIN_LEN..l {
+                name.push('x');
             }
             let data = name.into_bytes();
             let (label, _) =
             Label::<T::Hash>::new(&data).unwrap();
-            let duration = <T as crate::redeem_code::pallet::Config>::Moment::from(24*60*60*365 as u32);
+            let duration = <T as crate::redeem_code::pallet::Config>::Moment::from(24*60*60*365_u32);
             let poor_account7 = poor_account::<T>(7);
         }: {
             <T as Config>::Registrar::for_redeem_code(data, poor_account7, duration, label).unwrap();
