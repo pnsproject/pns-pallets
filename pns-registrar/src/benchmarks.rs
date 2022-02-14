@@ -267,13 +267,11 @@ mod registrar {
 }
 
 mod redeem_code {
-    use super::{
-        get_manager, get_name, name_to_node, poor_account, U32_LABEL_MAX_LEN, U32_LABEL_MIN_LEN,
-    };
+    use super::{get_manager, name_to_node, poor_account, U32_LABEL_MAX_LEN, U32_LABEL_MIN_LEN};
     use crate::traits::Registrar;
     use crate::{
         redeem_code::{Call, Config, Pallet},
-        traits::{Label, LABEL_MIN_LEN, MIN_REGISTRABLE_LEN},
+        traits::Label,
     };
     use codec::Decode;
     use frame_benchmarking::benchmarks;
