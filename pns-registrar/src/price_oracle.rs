@@ -95,10 +95,7 @@ pub mod pallet {
     }
 
     #[pallet::error]
-    pub enum Error<T> {
-        NoneValue,
-        StorageOverflow,
-    }
+    pub enum Error<T> {}
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
