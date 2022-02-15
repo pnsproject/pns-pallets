@@ -23,3 +23,16 @@ cargo clippy:
 ```shell
 cargo clippy --no-default-features --features runtime-benchmarks
 ```
+
+### Q&A
+
+- Q:
+```shell
+pns-pallets on  main [!?] via 🦀 v1.60.0-nightly 
+❯ ./before_commit.sh
+zsh: permission denied: ./before_commit.sh
+```
+- A:
+```shell
+chmod u+x before_commit.sh
+```
