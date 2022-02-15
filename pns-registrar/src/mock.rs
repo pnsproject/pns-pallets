@@ -381,17 +381,10 @@ impl crate::registrar::Config for Test {
     type IsOpen = crate::origin::Pallet<Test>;
 }
 
-parameter_types! {
-    pub const MaximumLength: u8 = 10;
-    pub const RateScale: Balance = 100_000;
-}
-
 impl crate::price_oracle::Config for Test {
     type Event = Event;
 
     type Currency = pallet_balances::Pallet<Test>;
-
-    type MaximumLength = MaximumLength;
 
     type WeightInfo = TestWeightInfo;
 

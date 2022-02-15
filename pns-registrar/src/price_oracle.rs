@@ -8,7 +8,7 @@ type BalanceOf<T> = <<T as Config>::Currency as frame_support::traits::Currency<
 pub mod pallet {
     use super::*;
     use crate::traits::ExchangeRate as ExchangeRateT;
-    use frame_support::traits::{Currency, EnsureOrigin, Get};
+    use frame_support::traits::{Currency, EnsureOrigin};
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
@@ -31,9 +31,6 @@ pub mod pallet {
             + TypeInfo
             + AtLeast32BitUnsigned
             + MaybeSerializeDeserialize;
-
-        #[pallet::constant]
-        type MaximumLength: Get<u8>;
 
         type ExchangeRate: ExchangeRateT<Balance = BalanceOf<Self>>;
 
@@ -92,6 +89,8 @@ pub mod pallet {
         /// Rent price changed
         /// `[rent_prices]`
         RentPriceChanged([BalanceOf<T>; 11]),
+        /// Exchange rate changed
+        /// `[who, rate]`
         ExchangeRateChanged(T::AccountId, BalanceOf<T>),
     }
 
