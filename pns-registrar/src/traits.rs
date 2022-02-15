@@ -120,8 +120,8 @@ where
         Some((Self { node }, data.len()))
     }
 
-    pub fn encode_with_baselabel(&self, baselabel: Hash) -> Hash {
-        let basenode = Self::basenode(&baselabel);
+    pub fn encode_with_baselabel(&self, baselabel: &Hash) -> Hash {
+        let basenode = Self::basenode(baselabel);
         let encoded_again = &(basenode, &self.node).encode();
 
         sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(encoded_again))
@@ -137,7 +137,7 @@ where
         Self::basenode(&self.node)
     }
 
-    pub fn encode_with_node(&self, node: Hash) -> Hash {
+    pub fn encode_with_node(&self, node: &Hash) -> Hash {
         let encoded = &(node, &self.node).encode();
 
         sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(encoded))

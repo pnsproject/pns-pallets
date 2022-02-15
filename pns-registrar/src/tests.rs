@@ -81,8 +81,8 @@ fn register_test() {
         assert!(len == 11);
 
         assert!(len2 == 11);
-        let node = label.encode_with_node(DOT_BASENODE);
-        let node2 = label2.encode_with_node(DOT_BASENODE);
+        let node = label.encode_with_node(&DOT_BASENODE);
+        let node2 = label2.encode_with_node(&DOT_BASENODE);
 
         assert_ok!(Registry::approve(
             Origin::signed(RICH_ACCOUNT),
@@ -230,7 +230,7 @@ fn register_test() {
         );
 
         let (test_label, _) = Label::<Hash>::new(b"test1").unwrap();
-        let test_node = test_label.encode_with_node(node2);
+        let test_node = test_label.encode_with_node(&node2);
 
         assert!(Nft::is_owner(&MONEY_ACCOUNT, (0, test_node)));
     });
@@ -299,7 +299,7 @@ fn redeem_code_test() {
             POOR_ACCOUNT
         ));
 
-        let test_node = label.encode_with_node(DOT_BASENODE);
+        let test_node = label.encode_with_node(&DOT_BASENODE);
 
         assert!(Nft::is_owner(&POOR_ACCOUNT, (0, test_node)));
 
@@ -387,7 +387,7 @@ fn redeem_code_test() {
         let test_node = Label::new("cupnfishxxx".as_bytes())
             .unwrap()
             .0
-            .encode_with_node(DOT_BASENODE);
+            .encode_with_node(&DOT_BASENODE);
 
         assert!(Nft::is_owner(&POOR_ACCOUNT, (0, test_node)));
     })
@@ -406,7 +406,7 @@ fn resolvers_test() {
         let node = Label::new("cupnfishxxx".as_bytes())
             .unwrap()
             .0
-            .encode_with_node(DOT_BASENODE);
+            .encode_with_node(&DOT_BASENODE);
 
         assert_ok!(Resolvers::set_account(
             Origin::signed(MONEY_ACCOUNT),

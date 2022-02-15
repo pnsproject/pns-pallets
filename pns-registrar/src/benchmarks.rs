@@ -24,7 +24,7 @@ where
     H: Default + AsMut<[u8]> + codec::Encode + Clone,
 {
     let (label, _len) = crate::traits::Label::<H>::new(&name).unwrap();
-    label.encode_with_node(basenode)
+    label.encode_with_node(&basenode)
 }
 
 pub fn account_to_source<T: frame_system::Config>(
@@ -66,7 +66,7 @@ mod registry {
             .unwrap()
             .0;
         let class_id = T::ClassId::zero();
-        let node = label.encode_with_node(T::Registrar::basenode());
+        let node = label.encode_with_node(&T::Registrar::basenode());
 
         crate::nft::Pallet::<T>::mint(
             &owner,
@@ -185,7 +185,7 @@ mod registrar {
 
     fn get_subhash<T: Config>(subname: &[u8], node: T::Hash) -> T::Hash {
         let (label, _len) = Label::new(subname).unwrap();
-        label.encode_with_node(node)
+        label.encode_with_node(&node)
     }
 
     benchmarks! {

@@ -46,6 +46,7 @@ pub mod pallet {
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
+    // TODO: 只有11档价格，并且档数的选择与域名长度相关
     #[pallet::storage]
     pub type BasePrice<T: Config> = StorageValue<_, [BalanceOf<T>; 11], ValueQuery>;
 

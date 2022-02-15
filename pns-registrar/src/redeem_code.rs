@@ -173,7 +173,7 @@ pub mod pallet {
                 Error::<T>::InvalidSignature
             );
 
-            let node = label.encode_with_node(T::Registrar::basenode());
+            let node = label.encode_with_node(&T::Registrar::basenode());
 
             T::Registrar::for_redeem_code(name, owner.clone(), duration, label)?;
 
@@ -225,7 +225,7 @@ pub mod pallet {
                 Error::<T>::InvalidSignature
             );
 
-            let node = label.encode_with_node(T::Registrar::basenode());
+            let node = label.encode_with_node(&T::Registrar::basenode());
 
             T::Registrar::for_redeem_code(name, owner.clone(), duration, label)?;
 
