@@ -254,7 +254,7 @@ pub mod pallet {
                 ArithmeticError::Overflow
             );
             let base_node = T::BaseNode::get();
-            let label_node = label.encode_with_basenode(base_node);
+            let label_node = label.encode_with_node(base_node);
 
             ensure!(
                 !ReservedList::<T>::contains_key(&label_node),
@@ -333,7 +333,7 @@ pub mod pallet {
             let (label, label_len) =
                 Label::<T::Hash>::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
-            let label_node = label.encode_with_basenode(T::BaseNode::get());
+            let label_node = label.encode_with_node(T::BaseNode::get());
 
             RegistrarInfos::<T>::mutate(label_node, |info| -> DispatchResult {
                 let info = info.as_mut().ok_or(Error::<T>::NotExistOrOccupied)?;
@@ -584,7 +584,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
             ArithmeticError::Overflow
         );
         let base_node = T::BaseNode::get();
-        let label_node = label.encode_with_basenode(base_node);
+        let label_node = label.encode_with_node(base_node);
 
         T::Registry::mint_subname(
             &official,

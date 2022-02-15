@@ -8,11 +8,6 @@ use traits::Label;
 
 const DAYS: u64 = 24 * 60 * 60;
 
-pub const BASE_NODE: Hash = sp_core::H256([
-    206, 21, 156, 243, 67, 128, 117, 125, 25, 50, 168, 228, 167, 78, 133, 232, 89, 87, 176, 167,
-    165, 45, 156, 86, 108, 10, 60, 141, 97, 51, 208, 247,
-]);
-
 #[test]
 fn register_test() {
     new_test_ext().execute_with(|| {
@@ -86,8 +81,8 @@ fn register_test() {
         assert!(len == 11);
 
         assert!(len2 == 11);
-        let node = label.encode_with_basenode(BASE_NODE);
-        let node2 = label2.encode_with_basenode(BASE_NODE);
+        let node = label.encode_with_node(DOT_BASENODE);
+        let node2 = label2.encode_with_node(DOT_BASENODE);
 
         assert_ok!(Registry::approve(
             Origin::signed(RICH_ACCOUNT),
@@ -292,7 +287,7 @@ fn redeem_code_test() {
                 TestSignature(OFFICIAL_ACCOUNT, signature.clone()),
                 POOR_ACCOUNT
             ),
-            redeem_code::Error::<Test>::ParseLabelFailed
+            redeem_code::Error::<Test>::InvalidSignature
         );
 
         assert_ok!(RedeemCode::name_redeem(
@@ -304,7 +299,7 @@ fn redeem_code_test() {
             POOR_ACCOUNT
         ));
 
-        let test_node = label.encode_with_basenode(BASE_NODE);
+        let test_node = label.encode_with_node(DOT_BASENODE);
 
         assert!(Nft::is_owner(&POOR_ACCOUNT, (0, test_node)));
 
@@ -340,7 +335,7 @@ fn redeem_code_test() {
         assert_noop!(
             RedeemCode::name_redeem_any(
                 Origin::signed(RICH_ACCOUNT),
-                b"cupnfi--sh".to_vec(),
+                b"cup-nfi--sh".to_vec(),
                 MinRegistrationDuration::get(),
                 1,
                 TestSignature(OFFICIAL_ACCOUNT, signature.clone()),
@@ -392,7 +387,7 @@ fn redeem_code_test() {
         let test_node = Label::new("cupnfishxxx".as_bytes())
             .unwrap()
             .0
-            .encode_with_basenode(BASE_NODE);
+            .encode_with_node(DOT_BASENODE);
 
         assert!(Nft::is_owner(&POOR_ACCOUNT, (0, test_node)));
     })
@@ -411,7 +406,7 @@ fn resolvers_test() {
         let node = Label::new("cupnfishxxx".as_bytes())
             .unwrap()
             .0
-            .encode_with_basenode(BASE_NODE);
+            .encode_with_node(DOT_BASENODE);
 
         assert_ok!(Resolvers::set_account(
             Origin::signed(MONEY_ACCOUNT),
@@ -498,7 +493,7 @@ fn label_test() {
 
     // '-' test
     assert!(Label::<Hash>::new("-hello".as_bytes()).is_none());
-    assert!(Label::<Hash>::new("he-llo".as_bytes()).is_some());
+    assert!(Label::<Hash>::new("he-llo".as_bytes()).is_none());
     assert!(Label::<Hash>::new("he--llo".as_bytes()).is_none());
     assert!(Label::<Hash>::new("hello-".as_bytes()).is_none());
 
@@ -510,7 +505,10 @@ fn label_test() {
 
     // result test
     assert_eq!(
-        Label::<Hash>::new("dot".as_bytes()).unwrap().0.node,
-        BASE_NODE
+        Label::<Hash>::new("dot".as_bytes())
+            .unwrap()
+            .0
+            .to_basenode(),
+        DOT_BASENODE
     )
 }

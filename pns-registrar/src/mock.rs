@@ -16,6 +16,13 @@ pub const MILLISECS_PER_BLOCK: u64 = 6000;
 
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 
+// dot : [63, 206, 125, 19, 100, 168, 147, 226, 19, 188, 66, 18, 121, 43, 81, 127, 252, 136, 245, 177, 59, 134, 200, 239, 156, 141, 57, 12, 58, 19, 112, 206]
+// ksm : [40, 176, 66, 80, 226, 106, 137, 121, 141, 170, 194, 128, 195, 181, 31, 184, 186, 190, 216, 60, 185, 180, 141, 134, 171, 252, 4, 74, 2, 250, 3, 144]
+pub const DOT_BASENODE: H256 = sp_core::H256([
+    63, 206, 125, 19, 100, 168, 147, 226, 19, 188, 66, 18, 121, 43, 81, 127, 252, 136, 245, 177,
+    59, 134, 200, 239, 156, 141, 57, 12, 58, 19, 112, 206,
+]);
+
 // Configure a mock Test to test the pallet.
 frame_support::construct_runtime!(
     pub enum Test where
@@ -159,9 +166,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
                 OFFICIAL_ACCOUNT,
                 Default::default(),
                 Default::default(),
-                sp_core::convert_hash::<sp_core::H256, [u8; 32]>(&sp_core::hashing::keccak_256(
-                    "dot".as_bytes(),
-                )),
+                DOT_BASENODE,
             )],
         )],
     };
@@ -339,7 +344,7 @@ parameter_types! {
     pub const GracePeriod: BlockNumber = 90 * 24 * 60 * 60;
     pub const MinRegistrationDuration: Moment = 28 * 24 * 60 * 60;
     pub const DefaultCapacity: u32 = 20;
-    pub const BaseNode: Hash = sp_core::H256([206, 21, 156, 243, 67, 128, 117, 125, 25, 50, 168, 228, 167, 78, 133, 232, 89, 87, 176, 167, 165, 45, 156, 86, 108, 10, 60, 141, 97, 51, 208, 247]);
+    pub const BaseNode: Hash = DOT_BASENODE;
 }
 
 pub type Moment = u64;

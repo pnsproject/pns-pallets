@@ -45,7 +45,7 @@ where
         pns_registrar::traits::Label::<T::Hash>::new("cupnfishuuu".as_bytes())
             .unwrap()
             .0
-            .encode_with_basenode(T::BaseNode::get()),
+            .encode_with_node(T::BaseNode::get()),
     ))
 }
 

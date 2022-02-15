@@ -105,7 +105,7 @@ pub trait NFT<AccountId> {
 pub struct Label<Hash> {
     pub node: Hash,
 }
-pub const LABEL_MAX_LEN: usize = 64;
+pub const LABEL_MAX_LEN: usize = 63;
 pub const LABEL_MIN_LEN: usize = 3;
 pub const MIN_REGISTRABLE_LEN: usize = 10;
 
@@ -114,40 +114,27 @@ where
     Hash: Default + AsMut<[u8]> + Encode + Clone,
 {
     pub fn new(data: &[u8]) -> Option<(Self, usize)> {
-        let label = core::str::from_utf8(data)
-            .map(|label| label.to_ascii_lowercase())
-            .ok()?;
-        let label_len = label.len();
-        if !(LABEL_MIN_LEN..=LABEL_MAX_LEN).contains(&label_len) {
-            return None;
-        }
-        let mut flag = false;
+        check_label(data)?;
 
-        for res in label.bytes().enumerate() {
-            match res {
-                (i, c) if (i == 0 || i == label_len - 1) && !c.is_ascii_alphanumeric() => {
-                    return None
-                }
-                (_, c) if flag && c == b'-' => return None,
-                (_, c) if !flag && c == b'-' => flag = true,
-                (_, c) if c.is_ascii_alphanumeric() => {
-                    if flag {
-                        flag = true;
-                    }
-                }
-                _ => return None,
-            }
-        }
-        let node = sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(label.as_bytes()));
-        Some((Self { node }, label_len))
+        let node = sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(data));
+        Some((Self { node }, data.len()))
     }
 
-    pub fn encode_with_basenode(&self, basenode: Hash) -> Hash {
-        let encoded = &(Hash::default(), basenode).encode();
-        let hash_encoded = keccak_256(encoded);
-        let encoded_again = &(hash_encoded, &self.node).encode();
+    pub fn encode_with_baselabel(&self, baselabel: Hash) -> Hash {
+        let basenode = Self::basenode(&baselabel);
+        let encoded_again = &(basenode, &self.node).encode();
 
         sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(encoded_again))
+    }
+
+    pub fn basenode(baselabel: &Hash) -> Hash {
+        let encoded = &(Hash::default(), baselabel).encode();
+        let hash_encoded = keccak_256(encoded);
+        sp_core::convert_hash::<Hash, [u8; 32]>(&hash_encoded)
+    }
+
+    pub fn to_basenode(&self) -> Hash {
+        Self::basenode(&self.node)
     }
 
     pub fn encode_with_node(&self, node: Hash) -> Hash {
@@ -156,7 +143,46 @@ where
         sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(encoded))
     }
 }
+// TODO: (暂不支持中文域名)
+// 域名不区分大小写和简繁体。
+// 域名的合法长度为1~63个字符（域名主体，不包括后缀）。
+// 英文域名合法字符为a-z、0-9、短划线（-）。
+// （ 说明 短划线（-）不能出现在开头和结尾以及在第三和第四字符位置。）
+// 中文域名除英文域名合法字符外，必须含有至少一个汉字（简体或繁体），计算中文域名字符长度以转换后的punycode码为准。
+// 不支持xn—开头的请求参数（punycode码），请以中文域名作为请求参数。
+pub fn check_label(label: &[u8]) -> Option<()> {
+    let label = core::str::from_utf8(label)
+        .map(|label| label.to_ascii_lowercase())
+        .ok()?;
 
+    if !(LABEL_MIN_LEN..=LABEL_MAX_LEN).contains(&label.len()) {
+        return None;
+    }
+
+    let label_chars = label.chars().collect::<Vec<_>>();
+
+    match label_chars.as_slice() {
+        [first, middle @ .., last]
+            if first.is_ascii_alphanumeric() && last.is_ascii_alphanumeric() =>
+        {
+            for (i, &c) in middle.iter().enumerate() {
+                match c {
+                    c if c.is_ascii_alphanumeric() => continue,
+                    c if c == '-' => {
+                        if i == 1 || i == 2 {
+                            return None;
+                        }
+                        continue;
+                    }
+                    _ => return None,
+                }
+            }
+        }
+        _ => return None,
+    }
+
+    Some(())
+}
 pub trait Available {
     fn is_anctionable(&self) -> bool;
     fn is_registrable(&self) -> bool;
