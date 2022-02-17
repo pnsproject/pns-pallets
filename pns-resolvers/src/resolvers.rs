@@ -173,21 +173,6 @@ pub mod pallet {
                 Error::<T>::InvalidPermission
             );
 
-            match address {
-                MultiAddress::Id(_) => ensure!(
-                    kind == AddressKind::Substrate,
-                    Error::<T>::ParseAddressFailed
-                ),
-                MultiAddress::Address32(_) => ensure!(
-                    kind == AddressKind::Substrate,
-                    Error::<T>::ParseAddressFailed
-                ),
-                MultiAddress::Address20(_) => ensure!(
-                    kind == AddressKind::Ethereum,
-                    Error::<T>::ParseAddressFailed
-                ),
-            }
-
             Accounts::<T>::insert(node, kind.clone(), address.clone());
 
             Self::deposit_event(Event::<T>::AddressChanged(node, kind, address));
@@ -233,7 +218,6 @@ pub trait WeightInfo {
     scale_info::TypeInfo,
     serde::Serialize,
     serde::Deserialize,
-    MaxEncodedLen,
 )]
 #[cfg_attr(feature = "std", derive(Hash))]
 pub enum MultiAddress<AccountId> {
@@ -243,6 +227,14 @@ pub enum MultiAddress<AccountId> {
     Address32([u8; 32]),
     /// Its a 20 byte representation.
     Address20([u8; 20]),
+    /// It's a raw byte representation.
+    Raw(Vec<u8>),
+}
+
+impl<AccountId: codec::Encode> MaxEncodedLen for MultiAddress<AccountId> {
+    fn max_encoded_len() -> usize {
+        512
+    }
 }
 
 pub trait RegistryChecker {
