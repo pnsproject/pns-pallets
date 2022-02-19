@@ -259,3 +259,25 @@ pub trait WeightInfo {
     fn name_redeem_min() -> Weight;
     fn name_redeem_any_min() -> Weight;
 }
+
+impl WeightInfo for () {
+    fn mint_redeem(_len: u32) -> Weight {
+        0
+    }
+
+    fn create_label(_len: u32) -> Weight {
+        0
+    }
+
+    fn for_redeem_code(_len: u32) -> Weight {
+        0
+    }
+
+    fn name_redeem_min() -> Weight {
+        0
+    }
+
+    fn name_redeem_any_min() -> Weight {
+        0
+    }
+}

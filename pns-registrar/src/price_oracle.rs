@@ -205,3 +205,17 @@ impl<T: Config> ExchangeRateT for Pallet<T> {
         ExchangeRate::<T>::get()
     }
 }
+
+impl WeightInfo for () {
+    fn set_exchange_rate() -> Weight {
+        0
+    }
+
+    fn set_base_price() -> Weight {
+        0
+    }
+
+    fn set_rent_price() -> Weight {
+        0
+    }
+}

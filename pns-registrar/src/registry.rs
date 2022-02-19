@@ -677,3 +677,33 @@ impl<T: Config> crate::traits::Official for pallet::Pallet<T> {
         Official::<T>::get().ok_or_else(|| Error::<T>::OfficialNotInitiated.into())
     }
 }
+
+impl WeightInfo for () {
+    fn approval_for_all_true() -> Weight {
+        0
+    }
+
+    fn approval_for_all_false() -> Weight {
+        0
+    }
+
+    fn set_resolver() -> Weight {
+        0
+    }
+
+    fn destroy() -> Weight {
+        0
+    }
+
+    fn set_official() -> Weight {
+        0
+    }
+
+    fn approve_true() -> Weight {
+        0
+    }
+
+    fn approve_false() -> Weight {
+        0
+    }
+}

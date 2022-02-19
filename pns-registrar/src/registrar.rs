@@ -638,3 +638,33 @@ impl<T: Config> IntoMoment<T> for core::time::Duration {
         SaturatedConversion::saturated_from(duration)
     }
 }
+
+impl WeightInfo for () {
+    fn mint_subname(_len: u32) -> Weight {
+        0
+    }
+
+    fn register(_len: u32) -> Weight {
+        0
+    }
+
+    fn renew(_len: u32) -> Weight {
+        0
+    }
+
+    fn set_owner() -> Weight {
+        0
+    }
+
+    fn reclaimed() -> Weight {
+        0
+    }
+
+    fn add_reserved() -> Weight {
+        0
+    }
+
+    fn remove_reserved() -> Weight {
+        0
+    }
+}

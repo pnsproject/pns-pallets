@@ -269,3 +269,13 @@ impl From<Vec<u8>> for Content {
         Content(inner)
     }
 }
+
+impl WeightInfo for () {
+    fn set_text(_content_len: u32) -> Weight {
+        0
+    }
+
+    fn set_account() -> Weight {
+        0
+    }
+}

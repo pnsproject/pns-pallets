@@ -1,4 +1,4 @@
-use frame_support::{dispatch::Weight, parameter_types};
+use frame_support::parameter_types;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::H256;
 use sp_runtime::{
@@ -47,7 +47,7 @@ frame_support::construct_runtime!(
 impl pns_resolvers::resolvers::Config for Test {
     type Event = Event;
 
-    type WeightInfo = TestWeightInfo;
+    type WeightInfo = ();
 
     type AccountIndex = u32;
 
@@ -59,32 +59,10 @@ impl pns_resolvers::resolvers::Config for Test {
 impl crate::origin::Config for Test {
     type Event = Event;
 
-    type WeightInfo = TestWeightInfo;
+    type WeightInfo = ();
 }
 
 pub struct TestChecker;
-
-impl crate::origin::WeightInfo for TestWeightInfo {
-    fn set_origin_true() -> Weight {
-        0
-    }
-
-    fn set_origin_false() -> Weight {
-        0
-    }
-
-    fn set_origin_for_root_true() -> Weight {
-        0
-    }
-
-    fn set_origin_for_root_false() -> Weight {
-        0
-    }
-
-    fn set_registrar_open() -> Weight {
-        0
-    }
-}
 
 impl pns_resolvers::resolvers::RegistryChecker for TestChecker {
     type Hash = Hash;
@@ -200,114 +178,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     genesis_storage.into()
 }
 
-pub struct TestWeightInfo;
-
-impl pns_resolvers::resolvers::WeightInfo for TestWeightInfo {
-    fn set_text(content_len: u32) -> Weight {
-        10 * content_len as Weight + 0
-    }
-
-    fn set_account() -> Weight {
-        0
-    }
-}
-
-impl crate::registry::WeightInfo for TestWeightInfo {
-    fn set_resolver() -> Weight {
-        0
-    }
-
-    fn destroy() -> Weight {
-        0
-    }
-
-    fn set_official() -> Weight {
-        0
-    }
-
-    fn approval_for_all_true() -> Weight {
-        0
-    }
-
-    fn approval_for_all_false() -> Weight {
-        0
-    }
-
-    fn approve_true() -> Weight {
-        0
-    }
-
-    fn approve_false() -> Weight {
-        0
-    }
-}
-
-impl crate::registrar::WeightInfo for TestWeightInfo {
-    fn mint_subname(_len: u32) -> Weight {
-        0
-    }
-
-    fn register(_len: u32) -> Weight {
-        0
-    }
-
-    fn renew(_len: u32) -> Weight {
-        0
-    }
-
-    fn set_owner() -> Weight {
-        0
-    }
-
-    fn reclaimed() -> Weight {
-        0
-    }
-
-    fn add_reserved() -> Weight {
-        0
-    }
-
-    fn remove_reserved() -> Weight {
-        0
-    }
-}
-
-impl crate::redeem_code::WeightInfo for TestWeightInfo {
-    fn mint_redeem(_len: u32) -> Weight {
-        0
-    }
-
-    fn create_label(_len: u32) -> Weight {
-        0
-    }
-
-    fn for_redeem_code(_len: u32) -> Weight {
-        0
-    }
-
-    fn name_redeem_min() -> Weight {
-        0
-    }
-
-    fn name_redeem_any_min() -> Weight {
-        0
-    }
-}
-
-impl crate::price_oracle::WeightInfo for TestWeightInfo {
-    fn set_exchange_rate() -> Weight {
-        0
-    }
-
-    fn set_base_price() -> Weight {
-        0
-    }
-
-    fn set_rent_price() -> Weight {
-        0
-    }
-}
-
 parameter_types! {
     pub const MaxMetadata: u32 = 15;
 }
@@ -331,7 +201,7 @@ impl crate::nft::Config for Test {
 impl crate::registry::Config for Test {
     type Event = Event;
 
-    type WeightInfo = TestWeightInfo;
+    type WeightInfo = ();
 
     type Registrar = crate::registrar::Pallet<Test>;
 
@@ -364,7 +234,7 @@ impl crate::registrar::Config for Test {
 
     type BaseNode = BaseNode;
 
-    type WeightInfo = TestWeightInfo;
+    type WeightInfo = ();
 
     type MinRegistrationDuration = MinRegistrationDuration;
 
@@ -386,7 +256,7 @@ impl crate::price_oracle::Config for Test {
 
     type Currency = pallet_balances::Pallet<Test>;
 
-    type WeightInfo = TestWeightInfo;
+    type WeightInfo = ();
 
     type Moment = Moment;
 
@@ -408,7 +278,7 @@ impl crate::traits::ExchangeRate for TestRate {
 impl crate::redeem_code::Config for Test {
     type Event = Event;
 
-    type WeightInfo = TestWeightInfo;
+    type WeightInfo = ();
 
     type Registrar = crate::registrar::Pallet<Test>;
 

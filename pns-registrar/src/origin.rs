@@ -168,3 +168,25 @@ pub trait WeightInfo {
     fn set_origin_for_root_true() -> Weight;
     fn set_origin_for_root_false() -> Weight;
 }
+
+impl WeightInfo for () {
+    fn set_registrar_open() -> Weight {
+        0
+    }
+
+    fn set_origin_true() -> Weight {
+        0
+    }
+
+    fn set_origin_false() -> Weight {
+        0
+    }
+
+    fn set_origin_for_root_true() -> Weight {
+        0
+    }
+
+    fn set_origin_for_root_false() -> Weight {
+        0
+    }
+}
