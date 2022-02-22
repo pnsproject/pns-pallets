@@ -18,6 +18,24 @@
 //! - `burn` - Burn NFT(non fungible token)
 //! - `destroy_class` - Destroy NFT(non fungible token) class
 
+//! ### PNS Added
+//!
+//! The current `pns-pallets` have had the following magic changes made to them.
+//!
+//! 1. Removed the `token id` that relied on the counter, and
+//! instead stored it via an externally provided `token id`.
+//!
+//! 2. added `total id` to replace the previous `token id` total.
+//!  (One drawback is that the maximum is only `u128` because of
+//! the `AtLeast32BitUnsigned` limit, however, `token id` is usually `H256`,
+//!  i.e., the module will overflow due to too many `total`s when it runs
+//! for a long time to a future date.)
+//!
+//! 3. Changed the function signature of `mint`,
+//! which adds `token id` to the parameters of the signature,
+//! and during `mint`, it no longer generates `token id` by counter,
+//! but stores it with the incoming `token id`.
+
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{ensure, pallet_prelude::*, traits::Get, BoundedVec, Parameter};
 use scale_info::TypeInfo;

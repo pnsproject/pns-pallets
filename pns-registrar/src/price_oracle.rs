@@ -1,3 +1,28 @@
+//! # Price Oracle
+//!
+//! This module is responsible for providing a price list
+//! that can be set dynamically, but it is not intelligent
+//! and the base price can only be set manually by the manager.
+//! (A more intelligent approach, such as an off-chain worker,
+//!  is being considered)
+//!
+//! ## Introduction
+//!
+//! This module is used to calculate the parameters required
+//! for the base price of domain name registrations and auctions.
+//!
+//! ### Module functions
+//!
+//! - `set_exchange_rate` - sets the local rate
+//! - `set_base_price` - sets the base price
+//! - `set_rent_price` - sets the price used for time growth
+//!
+//! All the above methods require manager privileges in `pnsOrigin`.
+//!
+//! Note that the `trait` of `ExchangeRate` is to conveniently follow
+//! if the parallel chain itself provides price oracle related functions,
+//! and can be directly replaced.
+//!
 pub use pallet::*;
 
 type BalanceOf<T> = <<T as Config>::Currency as frame_support::traits::Currency<

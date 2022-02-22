@@ -1,3 +1,30 @@
+//! # Redeem Code
+//!
+//! This module is an implementation of the functionality
+//! related to redemption codes.
+//!
+//! But the current implementation has a fatal problem.
+//!
+//! - When hackers submit transactions with their own accounts
+//! by intercepting transactions submitted by other users before
+//! other users successfully register, they may intercept the
+//! domain name that can be redeemed by obtaining that redemption code.
+//!
+//! Therefore this part of the code should be re-implemented.
+//!
+//! ## Introduction
+//!
+//! This module has the function to redeem the redemption code,
+//! and the function to generate the `nouce` needed to redeem the code.
+//!
+//! ### Module functions
+//!
+//! - `mint_redeem` - generates `nouce` for the specified range
+//! - `name_redeem` - redeem the specified domain
+//! - `name_redeem_any` - redeem any registrable domain name above a certain length (a certain length currently is 10 digits)
+//!
+//! All the above methods require manager privileges in `pnsOrigin`.
+
 pub use pallet::*;
 
 #[frame_support::pallet]

@@ -1,3 +1,46 @@
+//! # Registrar
+//! This module is the registration center for domain names,
+//! and it also records some important information about domain name registration:
+//!
+//! ```rust
+//!     pub struct RegistrarInfo<Duration, Balance> {
+//!         /// Expiration time
+//!         pub expire: Duration,
+//!         /// Capacity of subdomains that can be created
+//!         pub capacity: u32,
+//!         /// Deposit
+//!         pub deposit: Balance,
+//!         /// Registration fee
+//!         pub register_fee: Balance,
+//!     }
+//! ```
+//! ## Introduction
+//! Some of the methods in this module involve the transfer of money,
+//! so you need to be as careful as possible when reviewing them.
+//!
+//! ### Module functions
+//! - `add_reserved` - adds a pre-reserved domain name (pre-reserved domains cannot be registered), requires manager privileges
+//! - `remove_reserved` - removes a reserved domain name, requires manager privileges
+//! - `register` - register a domain name
+//! - `renew` - renew a domain name, requires caller to have permission to operate the domain
+//! - `set_owner` - transfer a domain name, requires the caller to have permission to operate the domain name
+//! - `mint_subname` - Cast a subdomain, requires the caller to have permission to operate the domain
+//! - `reclaimed` - reclaim a domain name, requires the caller to have permission to operate the domain name. (The remaining time of the domain registration is not converted into an amount to be returned to the user, only the deposit is returned)
+//!
+//! There is a problem with the part about deposits, first review the process of collecting deposits:
+//! 1. the deposit is the transaction of the registered domain name to the `PnsOfficial` account
+//! 2. the `PnsOfficial` account then saves the deposit through `T::Currency::reserve` so that it cannot be withdrawn.
+//! 3. when the domain is `reclaimed` by the user, `PnsOfficial` calls `T::Currency::unreserve` and returns the deposit to the caller. (Or if the domain name expires and is registered by someone else, then the deposit return logic is executed)
+//!
+//! This part of the function is obviously much more cumbersome,
+//! and if the deposit is simply locked to the corresponding user account,
+//! it will restrict operations such as domain transfers, as it will be
+//! impossible to trace who paid the deposit when the domain is transferred.
+//!
+//! At the same time, there will be another potential problem:
+//! if the deposit is not set properly, the transaction amount
+//! will be too low and the transaction will be restricted.
+
 pub use pallet::*;
 
 type BalanceOf<T> = <<T as Config>::Currency as frame_support::traits::Currency<

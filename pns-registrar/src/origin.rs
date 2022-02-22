@@ -1,3 +1,21 @@
+//! # PNS Origin
+//!
+//! This module is responsible for providing administrator account
+//! authentication for `pns-pallets`. Considering that `pns-pallets`
+//! does not routinely obtain administrator privileges on the chain,
+//! this interface is provided to operate and maintain `pns-pallets`.
+//!
+//! ## Introduction
+//!
+//! This module provides storage to mark which account is the manager
+//!  and to enable or disable `pns` domain registration.
+//!
+//! ### Module functions
+//!
+//! - `set_registrar_open` - sets whether to turn on domain registration
+//! - `set_origin` - sets the manager (caller must be an manager)
+//! - `set_origin_for_root` - sets the manager (caller must be `Root`)
+
 pub use pallet::*;
 
 #[frame_support::pallet]

@@ -36,3 +36,9 @@ zsh: permission denied: ./before_commit.sh
 ```shell
 chmod u+x before_commit.sh
 ```
+
+### Documents
+
+```shell
+cargo doc --open
+```

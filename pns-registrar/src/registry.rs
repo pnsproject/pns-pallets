@@ -1,3 +1,23 @@
+//! # Registry
+//!
+//! This module is a high-level abstraction of the NFT module,
+//! and provides `PnsOfficial` storage.
+//!
+//!
+//! ## Introduction
+//!
+//! Most of the methods of this module are abstracted to higher-level
+//! domain name distribution calls (pns-registrar, pns-auction......).
+//! But there are still some methods for domain authority management.
+//!
+//! ### Module functions
+//!
+//! - `approval_for_all` - share the permissions of all your domains to other accounts
+//! - `set_resolver` - set the resolver address of a domain name, which requires permission to operate that domain
+//! - `destroy` - destroy a domain, return it to the owner if there is a deposit, requires the domain's operational privileges (duplicates `registrar::reclaimed` function)
+//! - `set_official` - Set official account, needs manager privileges
+//! - `approve` - share the permission of a domain to another account, requires the permission of the domain
+
 pub use pallet::*;
 use sp_runtime::DispatchError;
 use sp_std::vec::Vec;
