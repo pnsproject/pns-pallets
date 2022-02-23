@@ -253,15 +253,6 @@ mod registrar {
             let clone_rich = rich_account.clone();
         }:_(RawOrigin::Signed(clone_rich),hash,subname,account_to_source::<T>(rich_account))
 
-
-        reclaimed {
-            let name = get_name(MIN_REGISTRABLE_LEN);
-            let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get());
-            let rich_account = create_caller::<T>(8);
-            let clone_rich = rich_account.clone();
-            Pallet::<T>::register(RawOrigin::Signed(clone_rich).into(), name,account_to_source::<T>(rich_account.clone()),T::MinRegistrationDuration::get())?;
-        }:_(RawOrigin::Signed(rich_account),hash)
-
         impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), Test);
     }
 }

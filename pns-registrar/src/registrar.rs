@@ -25,7 +25,6 @@
 //! - `renew` - renew a domain name, requires caller to have permission to operate the domain
 //! - `set_owner` - transfer a domain name, requires the caller to have permission to operate the domain name
 //! - `mint_subname` - Cast a subdomain, requires the caller to have permission to operate the domain
-//! - `reclaimed` - reclaim a domain name, requires the caller to have permission to operate the domain name. (The remaining time of the domain registration is not converted into an amount to be returned to the user, only the deposit is returned)
 //!
 //! There is a problem with the part about deposits, first review the process of collecting deposits:
 //! 1. the deposit is the transaction of the registered domain name to the `PnsOfficial` account
@@ -466,42 +465,6 @@ pub mod pallet {
 
             Ok(())
         }
-        // TODO: test this
-        /// Give your domain name to the official reclaimed and return it to you for a deposit.
-        ///
-        /// Note: The return deposit is refunded to the caller's account.
-        ///
-        /// Ensure: Caller has enough permissions and also enough deposit for the given domain.
-        #[pallet::weight(T::WeightInfo::reclaimed())]
-        #[frame_support::transactional]
-        pub fn reclaimed(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
-            let caller = ensure_signed(origin)?;
-
-            ensure!(T::IsOpen::is_open(), Error::<T>::RegistrarClosed);
-
-            ensure!(
-                RegistrarInfos::<T>::contains_key(node),
-                Error::<T>::NotExistOrOccupied
-            );
-            T::Registry::reclaimed(&caller, node)?;
-            RegistrarInfos::<T>::mutate(node, |info| -> DispatchResult {
-                if let Some(info) = info {
-                    let official = T::Official::get_official_account()?;
-                    T::Currency::unreserve(&official, info.deposit);
-                    T::Currency::transfer(
-                        &official,
-                        &caller,
-                        info.deposit,
-                        ExistenceRequirement::KeepAlive,
-                    )?;
-                    info.deposit = Zero::zero();
-                    info.expire = Zero::zero();
-                }
-                Ok(())
-            })?;
-
-            Ok(())
-        }
     }
 }
 
@@ -521,7 +484,6 @@ pub trait WeightInfo {
     fn register(len: u32) -> Weight;
     fn renew(len: u32) -> Weight;
     fn set_owner() -> Weight;
-    fn reclaimed() -> Weight;
     fn add_reserved() -> Weight;
     fn remove_reserved() -> Weight;
 }
@@ -601,7 +563,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
                     &official,
                     owner,
                     info.deposit,
-                    frame_support::traits::ExistenceRequirement::KeepAlive,
+                    frame_support::traits::ExistenceRequirement::AllowDeath,
                 )
                 .ok()?;
             }
@@ -696,10 +658,6 @@ impl WeightInfo for () {
     }
 
     fn set_owner() -> Weight {
-        0
-    }
-
-    fn reclaimed() -> Weight {
         0
     }
 

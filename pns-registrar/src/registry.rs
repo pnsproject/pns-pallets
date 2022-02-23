@@ -14,7 +14,7 @@
 //!
 //! - `approval_for_all` - share the permissions of all your domains to other accounts
 //! - `set_resolver` - set the resolver address of a domain name, which requires permission to operate that domain
-//! - `destroy` - destroy a domain, return it to the owner if there is a deposit, requires the domain's operational privileges (duplicates `registrar::reclaimed` function)
+//! - `destroy` - destroy a domain, return it to the owner if there is a deposit, requires the domain's operational privileges
 //! - `set_official` - Set official account, needs manager privileges
 //! - `approve` - share the permission of a domain to another account, requires the permission of the domain
 
@@ -25,10 +25,7 @@ use sp_std::vec::Vec;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use crate::{
-        nft,
-        traits::{Official as OfficialT, Registrar},
-    };
+    use crate::{nft, traits::Registrar};
     use codec::FullCodec;
     use frame_support::pallet_prelude::*;
     use frame_support::traits::EnsureOrigin;
@@ -377,45 +374,6 @@ pub mod pallet {
                 }
             })
         }
-        #[cfg_attr(
-            not(feature = "runtime-benchmarks"),
-            frame_support::require_transactional
-        )]
-        pub fn do_reclaimed(caller: &T::AccountId, token: T::TokenId) -> DispatchResult {
-            let class_id = T::ClassId::zero();
-            let token_info =
-                nft::Pallet::<T>::tokens(class_id, token).ok_or(Error::<T>::NotExist)?;
-
-            let owner = token_info.owner;
-
-            ensure!(
-                &owner == caller
-                    || OperatorApprovals::<T>::contains_key(&owner, &caller)
-                    || TokenApprovals::<T>::contains_key(token, &caller),
-                Error::<T>::NoPermission
-            );
-
-            if let Some(origin) = Origin::<T>::get(token) {
-                match origin {
-                    DomainTracing::OriginAndParent(origin, _) | DomainTracing::Origin(origin) => {
-                        T::Registrar::check_expires_renewable(origin)?;
-                    }
-                    DomainTracing::Root => {
-                        T::Registrar::check_expires_renewable(token)?;
-                    }
-                }
-            } else {
-                return Err(Error::<T>::NotExist.into());
-            }
-
-            let official = Self::get_official_account()?;
-
-            nft::Pallet::<T>::transfer(&owner, &official, (class_id, token))?;
-
-            Self::deposit_event(Event::<T>::Reclaimed(token, owner));
-
-            Ok(())
-        }
         /// Ensure `from` is a caller.
         #[cfg_attr(
             not(feature = "runtime-benchmarks"),
@@ -683,10 +641,6 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
     #[frame_support::require_transactional]
     fn transfer(from: &Self::AccountId, to: &Self::AccountId, node: Self::Hash) -> DispatchResult {
         Self::do_transfer(from, to, node)
-    }
-    #[frame_support::require_transactional]
-    fn reclaimed(caller: &Self::AccountId, node: Self::Hash) -> sp_runtime::DispatchResult {
-        Self::do_reclaimed(caller, node)
     }
 }
 

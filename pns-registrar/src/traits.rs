@@ -47,7 +47,6 @@ pub trait Registry: NFT<Self::AccountId> {
     ) -> DispatchResult;
     fn available(caller: &Self::AccountId, node: Self::Hash) -> DispatchResult;
     fn transfer(from: &Self::AccountId, to: &Self::AccountId, node: Self::Hash) -> DispatchResult;
-    fn reclaimed(caller: &Self::AccountId, node: Self::Hash) -> DispatchResult;
 }
 
 // 客户
