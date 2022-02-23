@@ -1,3 +1,12 @@
+/*!
+# Resolvers
+This module provides functionality for domain name resolution. Most of these interfaces are interfaces provided for subsequent cooperation with wallets.
+
+### Module functions
+- `set_account` - sets the account resolve, which requires the domain to be available relative to that user (ownership of the domain, the domain is not expired)
+- `set_text` - set text parsing, same requirements as above
+!*/
+
 use codec::MaxEncodedLen;
 pub use pallet::*;
 
