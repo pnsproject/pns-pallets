@@ -325,11 +325,9 @@ pub mod pallet {
                         target_value,
                         ExistenceRequirement::KeepAlive,
                     )?;
-                    T::Currency::reserve(&official, deposit)?;
                     RegistrarInfos::<T>::mutate(label_node, |info| -> DispatchResult {
                         if let Some(info) = info.as_mut() {
                             if let Some(pre_owner) = maybe_pre_owner {
-                                T::Currency::unreserve(&official, info.deposit);
                                 T::Currency::transfer(
                                     &official,
                                     pre_owner,
