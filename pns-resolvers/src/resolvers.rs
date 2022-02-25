@@ -68,21 +68,16 @@ pub mod pallet {
         Serialize,
         Deserialize,
     )]
-    pub enum AddressKind {
-        Substrate,
-        Bitcoin,
-        Ethereum,
+    pub enum Address<Id> {
+        Substrate([u8; 32]),
+        Bitcoin([u8; 25]),
+        Ethereum([u8; 20]),
+        Id(Id),
     }
     /// account_id mapping
     #[pallet::storage]
-    pub type Accounts<T: Config> = StorageDoubleMap<
-        _,
-        Twox64Concat,
-        T::DomainHash,
-        Twox64Concat,
-        AddressKind,
-        MultiAddress<T::AccountId>,
-    >;
+    pub type Accounts<T: Config> =
+        StorageDoubleMap<_, Twox64Concat, T::DomainHash, Twox64Concat, Address<T::AccountId>, ()>;
     #[derive(
         Encode,
         Decode,
@@ -121,7 +116,7 @@ pub mod pallet {
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         /// [`node`,`address_kind`,`address`]
-        pub accounts: Vec<(T::DomainHash, AddressKind, MultiAddress<T::AccountId>)>,
+        pub accounts: Vec<(T::DomainHash, Address<T::AccountId>)>,
         /// [`node`,`text_kind`,`text`]
         pub texts: Vec<(T::DomainHash, TextKind, Content)>,
     }
@@ -139,8 +134,8 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            for (node, address_kind, account) in self.accounts.iter().cloned() {
-                Accounts::<T>::insert(node, address_kind, account);
+            for (node, address_kind) in self.accounts.iter().cloned() {
+                Accounts::<T>::insert(node, address_kind, ());
             }
 
             for (node, text_kind, text) in self.texts.iter().cloned() {
@@ -152,8 +147,15 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// [`node`,`kind`,`value`]
-        AddressChanged(T::DomainHash, AddressKind, MultiAddress<T::AccountId>),
+        AddressChanged {
+            node: T::DomainHash,
+            address: Address<T::AccountId>,
+        },
+        TextsChanged {
+            node: T::DomainHash,
+            kind: TextKind,
+            content: Content,
+        },
     }
 
     #[pallet::error]
@@ -172,8 +174,7 @@ pub mod pallet {
         pub fn set_account(
             origin: OriginFor<T>,
             node: T::DomainHash,
-            kind: AddressKind,
-            address: MultiAddress<T::AccountId>,
+            address: Address<T::AccountId>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
@@ -182,9 +183,9 @@ pub mod pallet {
                 Error::<T>::InvalidPermission
             );
 
-            Accounts::<T>::insert(node, kind.clone(), address.clone());
+            Accounts::<T>::insert(node, &address, ());
 
-            Self::deposit_event(Event::<T>::AddressChanged(node, kind, address));
+            Self::deposit_event(Event::<T>::AddressChanged { node, address });
 
             Ok(())
         }
@@ -202,7 +203,13 @@ pub mod pallet {
                 Error::<T>::InvalidPermission
             );
 
-            Texts::<T>::insert(node, kind, content);
+            Texts::<T>::insert(node, &kind, &content);
+
+            Self::deposit_event(Event::<T>::TextsChanged {
+                node,
+                kind,
+                content,
+            });
 
             Ok(())
         }
@@ -215,35 +222,6 @@ use sp_std::vec::Vec;
 pub trait WeightInfo {
     fn set_text(content_len: u32) -> Weight;
     fn set_account() -> Weight;
-}
-
-#[derive(
-    codec::Encode,
-    codec::Decode,
-    PartialEq,
-    Eq,
-    Clone,
-    frame_support::RuntimeDebug,
-    scale_info::TypeInfo,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-#[cfg_attr(feature = "std", derive(Hash))]
-pub enum MultiAddress<AccountId> {
-    /// It's an account ID (pubkey).
-    Id(AccountId),
-    /// It's a 32 byte representation.
-    Address32([u8; 32]),
-    /// Its a 20 byte representation.
-    Address20([u8; 20]),
-    /// It's a raw byte representation.
-    Raw(Vec<u8>),
-}
-
-impl<AccountId: codec::Encode> MaxEncodedLen for MultiAddress<AccountId> {
-    fn max_encoded_len() -> usize {
-        512
-    }
 }
 
 pub trait RegistryChecker {
