@@ -107,7 +107,6 @@ pub mod pallet {
         MaxEncodedLen,
     )]
     pub enum DomainTracing<Hash> {
-        OriginAndParent(Hash, Hash),
         Origin(Hash),
         Root,
     }
@@ -240,10 +239,6 @@ pub mod pallet {
 
                 if let Some(origin) = Origin::<T>::get(token) {
                     match origin {
-                        DomainTracing::OriginAndParent(origin, parent) => {
-                            Self::sub_children(origin, class_id)?;
-                            Self::sub_children(parent, class_id)?;
-                        }
                         DomainTracing::Origin(origin) => Self::sub_children(origin, class_id)?,
                         DomainTracing::Root => {
                             T::Registrar::clear_registrar_info(token, &token_owner)?;
@@ -315,18 +310,14 @@ pub mod pallet {
 
                     if let Some(origin) = Origin::<T>::get(node) {
                         match origin {
-                            DomainTracing::OriginAndParent(origin, _)
-                            | DomainTracing::Origin(origin) => {
+                            DomainTracing::Origin(origin) => {
                                 T::Registrar::check_expires_useable(origin)?;
 
                                 Self::add_children_with_check(origin, class_id, capacity)?;
 
                                 Self::add_children(node, class_id)?;
 
-                                Origin::<T>::insert(
-                                    label_node,
-                                    DomainTracing::OriginAndParent(origin, node),
-                                );
+                                Origin::<T>::insert(label_node, DomainTracing::Origin(origin));
                             }
                             DomainTracing::Root => {
                                 Self::add_children_with_check(node, class_id, capacity)?;
@@ -399,7 +390,7 @@ pub mod pallet {
 
             if let Some(origin) = Origin::<T>::get(token) {
                 match origin {
-                    DomainTracing::OriginAndParent(origin, _) | DomainTracing::Origin(origin) => {
+                    DomainTracing::Origin(origin) => {
                         T::Registrar::check_expires_renewable(origin)?;
                     }
                     DomainTracing::Root => {
@@ -421,7 +412,9 @@ pub mod pallet {
             nft::Tokens::<T>::mutate(class_id, node, |data| -> DispatchResult {
                 if let Some(info) = data {
                     let node_children = info.data.children;
-                    info.data.children = node_children - 1;
+                    info.data.children = node_children
+                        .checked_sub(1)
+                        .ok_or(sp_runtime::ArithmeticError::Overflow)?;
                     Ok(())
                 } else {
                     Err(Error::<T>::NotExist.into())
@@ -510,6 +503,12 @@ pub mod pallet {
                 )?;
             }
 
+            nft::Classes::<T>::mutate(T::ClassId::zero(), |info| {
+                if let Some(info) = info {
+                    info.owner = official;
+                }
+            });
+
             Ok(())
         }
 
@@ -574,7 +573,7 @@ pub trait WeightInfo {
     fn approve_true() -> Weight;
     fn approve_false() -> Weight;
 }
-
+// TODO: replace litentry
 impl<T: pallet::Config> crate::traits::NFT<T::AccountId> for pallet::Pallet<T> {
     type ClassId = T::ClassId;
 
