@@ -2,7 +2,7 @@ use crate::*;
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok};
 use mock::*;
-use pns_resolvers::resolvers::{AddressKind, MultiAddress, TextKind};
+use pns_resolvers::resolvers::{Address, TextKind};
 use sp_runtime::testing::TestSignature;
 use traits::Label;
 
@@ -404,14 +404,12 @@ fn resolvers_test() {
         assert_ok!(Resolvers::set_account(
             Origin::signed(MONEY_ACCOUNT),
             node,
-            AddressKind::Substrate,
-            MultiAddress::Id(POOR_ACCOUNT)
+            Address::Id(POOR_ACCOUNT),
         ));
         assert_ok!(Resolvers::set_account(
             Origin::signed(MONEY_ACCOUNT),
             node,
-            AddressKind::Ethereum,
-            MultiAddress::Address20([4; 20])
+            Address::Ethereum([4; 20]),
         ));
         assert_ok!(Resolvers::set_text(
             Origin::signed(MONEY_ACCOUNT),
@@ -465,8 +463,7 @@ fn resolvers_test() {
             Resolvers::set_account(
                 Origin::signed(RICH_ACCOUNT),
                 node,
-                AddressKind::Substrate,
-                MultiAddress::Id(POOR_ACCOUNT)
+                Address::Id(POOR_ACCOUNT),
             ),
             pns_resolvers::resolvers::Error::<Test>::InvalidPermission
         );
