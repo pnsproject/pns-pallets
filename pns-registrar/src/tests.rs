@@ -53,7 +53,6 @@ fn register_test() {
         let total_price =
             PriceOracle::registry_price(name.len(), MinRegistrationDuration::get()).unwrap();
         let init_free = Balances::free_balance(RICH_ACCOUNT);
-        let init_deposit = Balances::reserved_balance(OFFICIAL_ACCOUNT);
         // a right call
         assert_ok!(Registrar::register(
             Origin::signed(RICH_ACCOUNT),
@@ -63,16 +62,10 @@ fn register_test() {
         ));
 
         let now_free = Balances::free_balance(RICH_ACCOUNT);
-        let now_deposit = Balances::reserved_balance(OFFICIAL_ACCOUNT);
         let deposit = PriceOracle::deposit_fee(name.len()).unwrap();
         let gas_fee = init_free - now_free - total_price - deposit;
 
         assert_eq!(gas_fee, 0);
-
-        assert_eq!(
-            now_deposit - init_deposit,
-            PriceOracle::deposit_fee(name.len()).unwrap()
-        );
 
         let (label, len) = Label::<Hash>::new(name).unwrap();
 
