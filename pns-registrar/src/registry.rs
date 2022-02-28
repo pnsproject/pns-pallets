@@ -282,7 +282,7 @@ pub mod pallet {
             label_node: T::Hash,
             to: T::AccountId,
             capacity: u32,
-            // `[pre_owner]`
+            // `[maybe_pre_owner]`
             do_payments: impl FnOnce(Option<&T::AccountId>) -> DispatchResult,
         ) -> DispatchResult {
             let class_id = T::ClassId::zero();

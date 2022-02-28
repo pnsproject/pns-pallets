@@ -361,6 +361,9 @@ mod price_oracle {
         set_rent_price {
         }:_(RawOrigin::Signed(get_manager::<T>()),[996_u32.into();11])
 
+        set_deposit_price{
+        }:_(RawOrigin::Signed(get_manager::<T>()),[996_u32.into();11])
+
         impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), Test);
     }
 }

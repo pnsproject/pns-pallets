@@ -227,6 +227,7 @@ pub mod pallet {
         /// Sorry, the registration center is currently closed, please pay attention to the official message and wait for the registration to open.
         RegistrarClosed,
     }
+
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Add a domain from the reserved list
@@ -279,9 +280,6 @@ pub mod pallet {
 
             ensure!(label_len.is_registrable(), Error::<T>::LabelInvalid);
 
-            let price = T::PriceOracle::renew_price(label_len, duration)
-                .ok_or(ArithmeticError::Overflow)?;
-
             let official = T::Official::get_official_account()?;
 
             let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
@@ -310,13 +308,12 @@ pub mod pallet {
                 owner.clone(),
                 0,
                 |maybe_pre_owner| -> DispatchResult {
-                    let register_fee =
-                        T::PriceOracle::register_fee(label_len).ok_or(ArithmeticError::Overflow)?;
+                    let register_fee = T::PriceOracle::register_fee(label_len, duration)
+                        .ok_or(ArithmeticError::Overflow)?;
                     let deposit =
                         T::PriceOracle::deposit_fee(label_len).ok_or(ArithmeticError::Overflow)?;
-                    let target_value = price
-                        .checked_add(&register_fee)
-                        .and_then(|fee| fee.checked_add(&deposit))
+                    let target_value = register_fee
+                        .checked_add(&deposit)
                         .ok_or(ArithmeticError::Overflow)?;
 
                     T::Currency::transfer(
@@ -389,7 +386,7 @@ pub mod pallet {
                     target_expire + grace_period > now + grace_period,
                     ArithmeticError::Overflow
                 );
-                let price = T::PriceOracle::renew_price(label_len, duration)
+                let price = T::PriceOracle::renew_fee(label_len, duration)
                     .ok_or(ArithmeticError::Overflow)?;
                 T::Currency::transfer(
                     &caller,

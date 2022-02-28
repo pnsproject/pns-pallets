@@ -76,12 +76,16 @@ pub mod pallet {
     pub type RentPrice<T: Config> = StorageValue<_, [BalanceOf<T>; 11], ValueQuery>;
 
     #[pallet::storage]
+    pub type DepositPrice<T: Config> = StorageValue<_, [BalanceOf<T>; 11], ValueQuery>;
+
+    #[pallet::storage]
     pub type ExchangeRate<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub base_prices: [BalanceOf<T>; 11],
         pub rent_prices: [BalanceOf<T>; 11],
+        pub deposit_prices: [BalanceOf<T>; 11],
         pub init_rate: BalanceOf<T>,
     }
 
@@ -91,6 +95,7 @@ pub mod pallet {
             GenesisConfig {
                 base_prices: [Default::default(); 11],
                 rent_prices: [Default::default(); 11],
+                deposit_prices: [Default::default(); 11],
                 init_rate: Default::default(),
             }
         }
@@ -101,6 +106,7 @@ pub mod pallet {
         fn build(&self) {
             <BasePrice<T>>::put(&self.base_prices);
             <RentPrice<T>>::put(&self.rent_prices);
+            <DepositPrice<T>>::put(&self.deposit_prices);
             <ExchangeRate<T>>::put(&self.init_rate);
         }
     }
@@ -114,6 +120,9 @@ pub mod pallet {
         /// Rent price changed
         /// `[rent_prices]`
         RentPriceChanged([BalanceOf<T>; 11]),
+        /// Deposit price changed
+        /// `[deposit_prices]`
+        DepositPriceChanged([BalanceOf<T>; 11]),
         /// Exchange rate changed
         /// `[who, rate]`
         ExchangeRateChanged(T::AccountId, BalanceOf<T>),
@@ -159,19 +168,31 @@ pub mod pallet {
 
             Ok(())
         }
+        /// Internal root method.
+        #[pallet::weight(T::WeightInfo::set_deposit_price())]
+        pub fn set_deposit_price(
+            origin: OriginFor<T>,
+            prices: [BalanceOf<T>; 11],
+        ) -> DispatchResult {
+            let _who = T::ManagerOrigin::ensure_origin(origin)?;
+
+            <DepositPrice<T>>::put(&prices);
+
+            Self::deposit_event(Event::DepositPriceChanged(prices));
+
+            Ok(())
+        }
     }
 }
 use crate::traits::{ExchangeRate as ExchangeRateT, PriceOracle};
 use frame_support::pallet_prelude::Weight;
-use sp_runtime::{
-    traits::{CheckedDiv, CheckedMul},
-    SaturatedConversion,
-};
+use sp_runtime::{traits::CheckedMul, SaturatedConversion};
 
 pub trait WeightInfo {
     fn set_exchange_rate() -> Weight;
     fn set_base_price() -> Weight;
     fn set_rent_price() -> Weight;
+    fn set_deposit_price() -> Weight;
 }
 
 impl<T: Config> PriceOracle for Pallet<T> {
@@ -179,18 +200,23 @@ impl<T: Config> PriceOracle for Pallet<T> {
 
     type Balance = BalanceOf<T>;
 
-    // TODO: 更合理的押金计算方式
     fn deposit_fee(name_len: usize) -> Option<Self::Balance> {
-        Self::register_fee(name_len).and_then(|register_fee| {
-            register_fee.checked_div(&Self::Balance::saturated_from(2_u128))
-        })
+        let deposit_prices = DepositPrice::<T>::get();
+        let prices_len = deposit_prices.len();
+        let len = if name_len < prices_len {
+            name_len.max(1)
+        } else {
+            prices_len
+        };
+        let exchange_rate = T::ExchangeRate::get_exchange_rate();
+        deposit_prices[len - 1].checked_mul(&exchange_rate)
     }
 
-    fn register_fee(name_len: usize) -> Option<Self::Balance> {
+    fn registration_fee(name_len: usize) -> Option<Self::Balance> {
         let base_prices = BasePrice::<T>::get();
         let prices_len = base_prices.len();
         let len = if name_len < prices_len {
-            name_len
+            name_len.max(1)
         } else {
             prices_len
         };
@@ -199,17 +225,17 @@ impl<T: Config> PriceOracle for Pallet<T> {
         base_prices[len - 1].checked_mul(&exchange_rate)
     }
 
-    fn registry_price(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
-        let register_price = Self::register_fee(name_len)?;
-        let rent_price = Self::renew_price(name_len, duration)?;
+    fn register_fee(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
+        let register_price = Self::registration_fee(name_len)?;
+        let rent_price = Self::renew_fee(name_len, duration)?;
 
         Some(register_price + rent_price)
     }
-    fn renew_price(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
+    fn renew_fee(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
         let rent_prices = RentPrice::<T>::get();
         let prices_len = rent_prices.len();
         let len = if name_len < prices_len {
-            name_len
+            name_len.max(1)
         } else {
             prices_len
         };
@@ -241,6 +267,10 @@ impl WeightInfo for () {
     }
 
     fn set_rent_price() -> Weight {
+        0
+    }
+
+    fn set_deposit_price() -> Weight {
         0
     }
 }
