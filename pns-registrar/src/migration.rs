@@ -50,10 +50,12 @@ impl<T: price_oracle::Config> Initialize<T> {
     pub fn initial_price_oracle(
         base_prices: [BalanceOf<T>; 11],
         rent_prices: [BalanceOf<T>; 11],
+        deposit_prices: [BalanceOf<T>; 11],
         init_rate: BalanceOf<T>,
     ) -> Weight {
         <price_oracle::BasePrice<T>>::put(base_prices);
         <price_oracle::RentPrice<T>>::put(rent_prices);
+        <price_oracle::DepositPrice<T>>::put(deposit_prices);
         <price_oracle::ExchangeRate<T>>::put(init_rate);
         <T as frame_system::Config>::DbWeight::get().writes(3)
     }
