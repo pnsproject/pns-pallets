@@ -63,10 +63,10 @@ pub trait PriceOracle {
     /// * `expires`: When the name presently expires (0 if this is a new registration).
     /// * `duration`: How long the name is being registered or extended for, in seconds.
     /// return The price of this renewal or registration, in wei.
-    fn renew_price(name_len: usize, duration: Self::Duration) -> Option<Self::Balance>;
-    fn registry_price(name_len: usize, duration: Self::Duration) -> Option<Self::Balance>;
-    fn register_fee(name_len: usize) -> Option<Self::Balance>;
+    fn renew_fee(name_len: usize, duration: Self::Duration) -> Option<Self::Balance>;
+    fn register_fee(name_len: usize, duration: Self::Duration) -> Option<Self::Balance>;
     fn deposit_fee(name_len: usize) -> Option<Self::Balance>;
+    fn registration_fee(name_len: usize) -> Option<Self::Balance>;
 }
 
 /// Abstraction over a non-fungible token system.

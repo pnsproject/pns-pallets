@@ -51,7 +51,7 @@ fn register_test() {
         use traits::PriceOracle as _;
 
         let total_price =
-            PriceOracle::registry_price(name.len(), MinRegistrationDuration::get()).unwrap();
+            PriceOracle::register_fee(name.len(), MinRegistrationDuration::get()).unwrap();
         let init_free = Balances::free_balance(RICH_ACCOUNT);
         // a right call
         assert_ok!(Registrar::register(
@@ -110,7 +110,7 @@ fn register_test() {
             pallet_balances::Error::<Test>::InsufficientBalance
         );
         let price_free =
-            PriceOracle::registry_price(name2.len(), MinRegistrationDuration::get()).unwrap();
+            PriceOracle::register_fee(name2.len(), MinRegistrationDuration::get()).unwrap();
 
         Balances::set_balance(Origin::root(), POOR_ACCOUNT, price_free, 0).unwrap();
 

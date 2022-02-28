@@ -163,6 +163,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     let price_oracle_genesis = crate::price_oracle::GenesisConfig::<Test> {
         base_prices: [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
         rent_prices: [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+        deposit_prices: [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
         init_rate: BASE,
     };
 

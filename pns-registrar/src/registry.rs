@@ -209,11 +209,23 @@ pub mod pallet {
 
     // helper
     impl<T: Config> Pallet<T> {
-        pub fn authorised(caller: &T::AccountId, node: T::Hash) -> DispatchResult {
+        #[inline]
+        pub fn verify(caller: &T::AccountId, node: T::Hash) -> DispatchResult {
             let owner = &nft::Pallet::<T>::tokens(T::ClassId::zero(), node)
                 .ok_or(Error::<T>::NotExist)?
                 .owner;
 
+            Self::verify_with_owner(caller, node, owner)?;
+
+            Ok(())
+        }
+
+        #[inline]
+        pub fn verify_with_owner(
+            caller: &T::AccountId,
+            node: T::Hash,
+            owner: &T::AccountId,
+        ) -> DispatchResult {
             ensure!(
                 caller == owner
                     || OperatorApprovals::<T>::contains_key(owner, caller)
@@ -225,17 +237,13 @@ pub mod pallet {
         }
     }
     impl<T: Config> Pallet<T> {
-        pub(crate) fn _burn(caller: T::AccountId, token: T::TokenId) -> DispatchResult {
+        pub(crate) fn burn(caller: T::AccountId, token: T::TokenId) -> DispatchResult {
             let class_id = T::ClassId::zero();
             if let Some(token_info) = nft::Pallet::<T>::tokens(class_id, token) {
                 let token_owner = token_info.owner;
                 ensure!(token_info.data.children == 0, Error::<T>::SubnodeNotClear);
-                ensure!(
-                    token_owner == caller
-                        || OperatorApprovals::<T>::contains_key(&token_owner, &caller)
-                        || TokenApprovals::<T>::contains_key(token, &caller),
-                    Error::<T>::NoPermission
-                );
+
+                Self::verify_with_owner(&caller, token, &token_owner)?;
 
                 if let Some(origin) = Origin::<T>::get(token) {
                     match origin {
@@ -267,14 +275,14 @@ pub mod pallet {
             not(feature = "runtime-benchmarks"),
             frame_support::require_transactional
         )]
-        pub(crate) fn _mint_subname(
+        pub(crate) fn mint_subname(
             owner: &T::AccountId,
             metadata: Vec<u8>,
             node: T::Hash,
             label_node: T::Hash,
             to: T::AccountId,
             capacity: u32,
-            // `[pre_owner]`
+            // `[maybe_pre_owner]`
             do_payments: impl FnOnce(Option<&T::AccountId>) -> DispatchResult,
         ) -> DispatchResult {
             let class_id = T::ClassId::zero();
@@ -283,12 +291,8 @@ pub mod pallet {
             // 176, 167, 165, 45, 156, 86, 108, 10, 60, 141, 97, 51, 208, 247]
             if let Some(node_info) = nft::Pallet::<T>::tokens(class_id, node) {
                 let node_owner = node_info.owner;
-                ensure!(
-                    owner == &node_owner
-                        || OperatorApprovals::<T>::contains_key(node_owner, owner)
-                        || TokenApprovals::<T>::contains_key(node, owner),
-                    Error::<T>::NoPermission
-                );
+
+                Self::verify_with_owner(owner, node, &node_owner)?;
 
                 if let Some(info) = nft::Tokens::<T>::get(class_id, label_node) {
                     T::Registrar::check_expires_registrable(label_node)?;
@@ -381,12 +385,7 @@ pub mod pallet {
 
             let owner = token_info.owner;
 
-            ensure!(
-                &owner == from
-                    || OperatorApprovals::<T>::contains_key(&owner, &from)
-                    || TokenApprovals::<T>::contains_key(token, &from),
-                Error::<T>::NoPermission
-            );
+            Self::verify_with_owner(from, token, &owner)?;
 
             if let Some(origin) = Origin::<T>::get(token) {
                 match origin {
@@ -467,7 +466,7 @@ pub mod pallet {
             resolver: T::ResolverId,
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
-            Self::authorised(&caller, node)?;
+            Self::verify(&caller, node)?;
             Resolver::<T>::mutate(node, |rs| *rs = resolver);
             Ok(())
         }
@@ -482,7 +481,7 @@ pub mod pallet {
         pub fn destroy(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
             let caller = ensure_signed(origin)?;
 
-            Self::_burn(caller, node)?;
+            Self::burn(caller, node)?;
 
             Ok(())
         }
@@ -527,12 +526,7 @@ pub mod pallet {
 
             ensure!(to != owner, Error::<T>::ApprovalFailure);
 
-            ensure!(
-                sender == owner
-                    || OperatorApprovals::<T>::contains_key(&owner, &sender)
-                    || TokenApprovals::<T>::contains_key(node, &sender),
-                Error::<T>::NoPermission
-            );
+            Self::verify_with_owner(&sender, node, &owner)?;
 
             if approved {
                 TokenApprovals::<T>::insert(node, to, ());
@@ -621,7 +615,7 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
         do_payments: impl FnOnce(Option<&T::AccountId>) -> DispatchResult,
     ) -> DispatchResult {
         let metadata = Vec::with_capacity(0);
-        Self::_mint_subname(
+        Self::mint_subname(
             node_owner,
             metadata,
             node,
@@ -634,7 +628,7 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
 
     /// 方便后续判断权限
     fn available(caller: &Self::AccountId, node: Self::Hash) -> DispatchResult {
-        pallet::Pallet::<T>::authorised(caller, node)
+        pallet::Pallet::<T>::verify(caller, node)
     }
 
     #[frame_support::require_transactional]
