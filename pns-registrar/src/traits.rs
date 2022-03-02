@@ -217,3 +217,12 @@ pub trait Official {
 pub trait IsRegistrarOpen {
     fn is_open() -> bool;
 }
+
+pub trait Auction {
+    type AccountId;
+    type Token;
+    type Balance;
+
+    fn new_auction(name: Vec<u8>, bidder: Self::AccountId) -> DispatchResult;
+    fn bid(token: Self::Token, bidder: Self::AccountId, amount: Self::Balance) -> DispatchResult;
+}
