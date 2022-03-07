@@ -302,7 +302,7 @@ fn redeem_code_test() {
                 b"cupnfish".to_vec(),
                 MinRegistrationDuration::get(),
                 0,
-                TestSignature(OFFICIAL_ACCOUNT, signature.clone()),
+                TestSignature(OFFICIAL_ACCOUNT, signature),
                 POOR_ACCOUNT
             ),
             redeem_code::Error::<Test>::RedeemsHasBeenUsed
@@ -373,7 +373,7 @@ fn redeem_code_test() {
             b"cupnfishxxx".to_vec(),
             MinRegistrationDuration::get(),
             1,
-            TestSignature(OFFICIAL_ACCOUNT, signature.clone()),
+            TestSignature(OFFICIAL_ACCOUNT, signature),
             POOR_ACCOUNT
         ));
 

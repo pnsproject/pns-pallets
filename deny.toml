@@ -1,0 +1,49 @@
+# Copied from the bevy project, with subsequent changes as appropriate.
+# https://github.com/bevyengine/bevy/blob/main/deny.toml
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = [ "https://github.com/rustsec/advisory-db" ]
+vulnerability = "deny"
+unmaintained = "deny"
+yanked = "deny"
+notice = "deny"
+ignore = [
+    "RUSTSEC-2020-0159", # from chrono 0.4.19 - unmaintained - https://github.com/time-rs/time/issues/293
+]
+
+[licenses]
+unlicensed = "deny"
+copyleft = "deny"
+allow = [ "MIT", "Apache-2.0", "BSD-3-Clause", "ISC", "Zlib", "0BSD", "BSD-2-Clause", "CC0-1.0" ]
+default = "deny"
+
+[[licenses.clarify]]
+name = "stretch"
+expression = "MIT"
+license-files = []
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+highlight = "all"
+# Certain crates/versions that will be skipped when doing duplicate detection.
+# skip = [
+#     { name = "cfg-if", version = "0.1" },              # from winit v0.26.0
+#     { name = "core-foundation", version = "0.6" },     # from gilrs v0.8.1
+#     { name = "core-foundation", version = "0.7" },     # from winit v0.26.0
+#     { name = "core-foundation-sys", version = "0.6" }, # from gilrs v0.8.1
+#     { name = "core-foundation-sys", version = "0.7" }, # from winit v0.26.0
+#     { name = "core-graphics", version = "0.19" },      # from winit v0.26.0
+#     { name = "mach", version = "0.2" },                # from gilrs v0.8.1
+#     { name = "mio", version = "0.7" },                 # from notify v5.0.0-pre.11
+#     { name = "ndk", version = "0.5" },                 # from winit v0.26.1
+#     { name = "ndk-glue", version = "0.5" },            # from winit v0.26.1
+#     { name = "ndk-sys", version = "0.2" },             # from winit v0.26.1
+#     { name = "stdweb", version = "0.1" },              # from rodio v0.15.0
+# ]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = [ "https://github.com/rust-lang/crates.io-index" ]
+allow-git = []

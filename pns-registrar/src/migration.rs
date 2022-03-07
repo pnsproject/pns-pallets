@@ -46,7 +46,7 @@ type BalanceOf<T> = <<T as price_oracle::Config>::Currency as frame_support::tra
 >>::Balance;
 
 impl<T: price_oracle::Config> Initialize<T> {
-    /// (BasePrice or RentPrice) is dollar * exchange rate -> finale value
+    /// (`BasePrice` or `RentPrice`) is dollar * exchange rate -> finale value
     pub fn initial_price_oracle(
         base_prices: [BalanceOf<T>; 11],
         rent_prices: [BalanceOf<T>; 11],

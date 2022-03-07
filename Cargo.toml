@@ -1,5 +1,2 @@
 [workspace]
-members = [
-	'pns-registrar',
-	'pns-resolvers',
-]
+members = [ 'pns-registrar', 'pns-resolvers', 'ci' ]
