@@ -95,7 +95,7 @@ pub mod pallet {
     #[pallet::genesis_config]
     #[cfg_attr(feature = "std", derive(Default))]
     pub struct GenesisConfig {
-        /// [`start`,`end`]
+        /// (`start`,`end`)
         pub redeems: Option<(u32, u32)>,
     }
 
@@ -117,7 +117,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// When the redemption code is used, it will be logged.
-        /// [`code`,`node`,`to`]
+        /// (`code`,`node`,`to`)
         RedeemCodeUsed(T::Signature, T::Hash, T::AccountId),
     }
 

@@ -110,12 +110,12 @@ pub mod pallet {
         Origin(Hash),
         Root,
     }
-    /// [`owner`,`account`] if `account` is `operater` -> ()
+    /// (`owner`,`account`) if `account` is `operater` -> ()
     #[pallet::storage]
     pub type OperatorApprovals<T: Config> =
         StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, T::AccountId, (), ValueQuery>;
 
-    /// [`node`,`account`] `node` -> `account`
+    /// (`node`,`account`) `node` -> `account`
     #[pallet::storage]
     pub type TokenApprovals<T: Config> =
         StorageDoubleMap<_, Twox64Concat, T::Hash, Twox64Concat, T::AccountId, (), ValueQuery>;

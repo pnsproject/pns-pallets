@@ -115,9 +115,9 @@ pub mod pallet {
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
-        /// [`node`,`address_kind`,`address`]
+        /// vec![ `node` , `address` ]
         pub accounts: Vec<(T::DomainHash, Address<T::AccountId>)>,
-        /// [`node`,`text_kind`,`text`]
+        /// vec![ `node` , `text_kind` , `text` ]
         pub texts: Vec<(T::DomainHash, TextKind, Content)>,
     }
 
