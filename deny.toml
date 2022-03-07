@@ -24,7 +24,7 @@ license-files = []
 
 [bans]
 # 目前substrate有不少包都是多版本共存的
-multiple-versions = "all"
+multiple-versions = "allow"
 wildcards = "deny"
 highlight = "all"
 # Certain crates/versions that will be skipped when doing duplicate detection.
