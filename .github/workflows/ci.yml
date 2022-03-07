@@ -58,30 +58,6 @@ jobs:
         # See tools/ci/src/main.rs for the commands this runs
         run: cargo run -p ci -- nonlocal
 
-  build-wasm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-build-wasm-nightly-${{ hashFiles('**/Cargo.toml') }}
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          target: wasm32-unknown-unknown
-          override: true
-      - name: Check wasm
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --target wasm32-unknown-unknown --no-default-features
-
   check-doc:
     runs-on: ubuntu-latest
     if: always()

@@ -17,6 +17,15 @@ fn main() {
         .run()
         .expect("Please fix clippy errors in output above.");
 
+    cmd!("cargo clippy --no-default-features --features runtime-benchmarks")
+        .run()
+        .expect("Please fix clippy errors in output above.");
+
+    // Cargo check
+    cmd!("cargo check --package pns-resolvers --lib --all-features")
+        .run()
+        .expect("Please fix check errors in output above.");
+
     // These tests are already run on the CI
     // Using a double-negative here allows end-users to have a nicer experience
     // as we can pass in the extra argument to the CI script
