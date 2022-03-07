@@ -23,7 +23,8 @@ expression = "MIT"
 license-files = []
 
 [bans]
-multiple-versions = "deny"
+# 目前substrate有不少包都是多版本共存的
+# multiple-versions = "deny"
 wildcards = "deny"
 highlight = "all"
 # Certain crates/versions that will be skipped when doing duplicate detection.
@@ -46,4 +47,4 @@ highlight = "all"
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = [ "https://github.com/rust-lang/crates.io-index" ]
-allow-git = []
+allow-git = [ "https://github.com/paritytech/substrate.git" ]
