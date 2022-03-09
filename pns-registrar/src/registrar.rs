@@ -627,6 +627,15 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     fn basenode() -> Self::Hash {
         T::BaseNode::get()
     }
+
+    fn for_auction(
+        node: Self::Hash,
+        to: Self::AccountId,
+        deposit: Self::Balance,
+        register_fee: Self::Balance,
+    ) {
+        todo!()
+    }
 }
 use sp_runtime::traits::SaturatedConversion;
 

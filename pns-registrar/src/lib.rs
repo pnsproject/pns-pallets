@@ -3,7 +3,7 @@
 #[cfg(feature = "runtime-benchmarks")]
 extern crate alloc;
 
-//pub mod auction;
+pub mod auction;
 pub mod migration;
 pub mod nft;
 pub mod origin;

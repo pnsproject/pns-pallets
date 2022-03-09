@@ -25,11 +25,12 @@ pub trait Registrar {
         label: Label<Self::Hash>,
     ) -> DispatchResult;
     fn basenode() -> Self::Hash;
-    // fn for_auction_set_expires(
-    // 	node: Self::Hash,
-    // 	deposit: Self::Balance,
-    // 	register_fee: Self::Balance,
-    // );
+    fn for_auction(
+        node: Self::Hash,
+        to: Self::AccountId,
+        deposit: Self::Balance,
+        register_fee: Self::Balance,
+    );
 }
 
 /// 登记表
@@ -216,4 +217,11 @@ pub trait Official {
 
 pub trait IsRegistrarOpen {
     fn is_open() -> bool;
+}
+
+pub trait Auction {
+    type AccountId;
+    type Token;
+    type Balance;
+    fn bid(caller: Self::AccountId, token: Self::Token, amount: Self::Balance) -> DispatchResult;
 }
