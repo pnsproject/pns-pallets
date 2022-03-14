@@ -24,6 +24,9 @@
 //! - `name_redeem_any` - redeem any registrable domain name above a certain length (a certain length currently is 10 digits)
 //!
 //! All the above methods require manager privileges in `pnsOrigin`.
+//!
+//! 这部分是兑换码的实现，但是按照jiang之前阐述的bug，这部分实现是有问题的
+//! 需要后续讨论，因此不再提供中文注释。
 
 pub use pallet::*;
 

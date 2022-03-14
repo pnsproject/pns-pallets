@@ -48,26 +48,35 @@ use sp_runtime::{
 use sp_std::vec::Vec;
 
 /// Class info
+/// 该类的信息
 #[derive(Encode, Decode, Clone, Eq, PartialEq, MaxEncodedLen, RuntimeDebug, TypeInfo)]
 pub struct ClassInfo<TotalId, AccountId, Data, ClassMetadataOf> {
     /// Class metadata
+    /// 该类的元数据
     pub metadata: ClassMetadataOf,
     /// Total issuance for the class
+    /// 该类的发行总数
     pub total_issuance: TotalId,
     /// Class owner
+    /// 该类的所有者
     pub owner: AccountId,
     /// Class Properties
+    /// 该类的属性
     pub data: Data,
 }
 
 /// Token info
+/// 该代币的信息
 #[derive(Encode, Decode, Clone, Eq, PartialEq, MaxEncodedLen, RuntimeDebug, TypeInfo)]
 pub struct TokenInfo<AccountId, Data, TokenMetadataOf> {
     /// Token metadata
+    /// 该代币的元数据
     pub metadata: TokenMetadataOf,
     /// Token owner
+    /// 该代币的所有者
     pub owner: AccountId,
     /// Token Properties
+    /// 该代币的属性
     pub data: Data,
 }
 
@@ -80,8 +89,10 @@ pub mod module {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// The class ID type
+        /// 该类所用的ID类型
         type ClassId: Parameter + Member + AtLeast32BitUnsigned + Default + Copy;
         /// The total ID type
+        /// 发行数量所用的类型
         type TotalId: Parameter
             + Member
             + AtLeast32BitUnsigned
@@ -89,83 +100,113 @@ pub mod module {
             + Copy
             + MaybeSerializeDeserialize;
         /// The token ID type
+        /// 该代币所用的ID类型
         type TokenId: Parameter + Member + Default + Copy + MaybeSerializeDeserialize;
         /// The class properties type
+        /// 该类的属性类型
         type ClassData: Parameter + Member + MaybeSerializeDeserialize;
         /// The token properties type
+        /// 该代币的属性类型
         type TokenData: Parameter + Member + MaybeSerializeDeserialize;
         /// The maximum size of a class's metadata
+        /// 该类的元数据的最大容量
         type MaxClassMetadata: Get<u32>;
         /// The maximum size of a token's metadata
+        /// 该代币的元数据的最大容量
         type MaxTokenMetadata: Get<u32>;
     }
-
+    /// 该类元数据
     pub type ClassMetadataOf<T> = BoundedVec<u8, <T as Config>::MaxClassMetadata>;
+    /// 该代币的元数据
     pub type TokenMetadataOf<T> = BoundedVec<u8, <T as Config>::MaxTokenMetadata>;
+    /// 该类的信息
     pub type ClassInfoOf<T> = ClassInfo<
         <T as Config>::TotalId,
         <T as frame_system::Config>::AccountId,
         <T as Config>::ClassData,
         ClassMetadataOf<T>,
     >;
+    /// 该代币的信息
     pub type TokenInfoOf<T> = TokenInfo<
         <T as frame_system::Config>::AccountId,
         <T as Config>::TokenData,
         TokenMetadataOf<T>,
     >;
-
+    /// 通用代币数据
     pub type GenesisTokenData<T> = (
+        // 代币的所有者
         <T as frame_system::Config>::AccountId, // Token owner
-        Vec<u8>,                                // Token metadata
+        // 代币的元数据
+        Vec<u8>, // Token metadata
+        // 代币的数据
         <T as Config>::TokenData,
+        // 代币的ID
         <T as Config>::TokenId,
     );
+    /// 通用代币集
     pub type GenesisTokens<T> = (
+        // 代币所在类的所有者
         <T as frame_system::Config>::AccountId, // Token class owner
-        Vec<u8>,                                // Token class metadata
+        // 代币所在类的元数据
+        Vec<u8>, // Token class metadata
+        // 类的数据
         <T as Config>::ClassData,
+        // 通用代币集合
         Vec<GenesisTokenData<T>>, // Vector of tokens belonging to this class
     );
 
     /// Error for non-fungible-token module.
+    /// NFT模块的错误
     #[pallet::error]
     pub enum Error<T> {
         /// No available class ID
+        /// 没有可用的ClassId了
         NoAvailableClassId,
 
         /// Token(ClassId, TokenId) not found
+        /// Token没有找到（ClassId下的TokenId不存在）
         TokenNotFound,
         /// Class not found
+        /// 没有找到该类
         ClassNotFound,
         /// The operator is not the owner of the token and has no permission
+        /// 权限不够
         NoPermission,
         /// Can not destroy class
         /// Total issuance is not 0
+        /// 不能摧毁一个类，这个类的发行总量不为0
         CannotDestroyClass,
         /// Failed because the Maximum amount of metadata was exceeded
+        /// 最大元数据溢出
         MaxMetadataExceeded,
     }
 
     /// Next available class ID.
+    /// 下一个可用的类ID
     #[pallet::storage]
     #[pallet::getter(fn next_class_id)]
     pub type NextClassId<T: Config> = StorageValue<_, T::ClassId, ValueQuery>;
     /// Store class info.
+    /// 存储类的信息
     ///
     /// Returns `None` if class info not set or removed.
+    /// 返回 `None` 如果类信息没有设置或者被移除
     #[pallet::storage]
     #[pallet::getter(fn classes)]
     pub type Classes<T: Config> = StorageMap<_, Twox64Concat, T::ClassId, ClassInfoOf<T>>;
 
     /// Store token info.
+    /// 存储代币信息
     ///
     /// Returns `None` if token info not set or removed.
+    /// 返回 `None` 如果代币信息没有设置或者被移除
     #[pallet::storage]
     #[pallet::getter(fn tokens)]
     pub type Tokens<T: Config> =
         StorageDoubleMap<_, Twox64Concat, T::ClassId, Twox64Concat, T::TokenId, TokenInfoOf<T>>;
 
     /// Token existence check by owner and class ID.
+    /// 通过所有者和类的ID检查代币是否存在
     #[pallet::storage]
     pub type TokensByOwner<T: Config> = StorageNMap<
         _,
@@ -227,6 +268,7 @@ pub mod module {
 
 impl<T: Config> Pallet<T> {
     /// Create NFT(non fungible token) class
+    /// 创建一个NFT类
     pub fn create_class(
         owner: &T::AccountId,
         metadata: Vec<u8>,
@@ -256,6 +298,8 @@ impl<T: Config> Pallet<T> {
     }
 
     /// Transfer NFT(non fungible token) from `from` account to `to` account
+    /// 交易一个NFT
+    /// 从 `from` 到 `to` 账户
     pub fn transfer(
         from: &T::AccountId,
         to: &T::AccountId,
@@ -279,8 +323,12 @@ impl<T: Config> Pallet<T> {
     }
 
     /// Mint NFT(non fungible token) to `owner`
+    /// 铸造一个NFT给 `owner`
     pub fn mint(
         owner: &T::AccountId,
+        // 这里原来只是 class id
+        // 但是因为域名本省具有自己的 token id
+        // 因此铸造的时候参数需要自己制定 token id
         token: (T::ClassId, T::TokenId),
         metadata: Vec<u8>,
         data: T::TokenData,
@@ -312,6 +360,7 @@ impl<T: Config> Pallet<T> {
     }
 
     /// Burn NFT(non fungible token) from `owner`
+    /// 销毁 NFT 从 `owner`
     pub fn burn(owner: &T::AccountId, token: (T::ClassId, T::TokenId)) -> DispatchResult {
         Tokens::<T>::try_mutate_exists(token.0, token.1, |token_info| -> DispatchResult {
             let t = token_info.take().ok_or(Error::<T>::TokenNotFound)?;
@@ -333,6 +382,7 @@ impl<T: Config> Pallet<T> {
     }
 
     /// Destroy NFT(non fungible token) class
+    /// 销毁 NFT 类
     pub fn destroy_class(owner: &T::AccountId, class_id: T::ClassId) -> DispatchResult {
         Classes::<T>::try_mutate_exists(class_id, |class_info| -> DispatchResult {
             let info = class_info.take().ok_or(Error::<T>::ClassNotFound)?;
@@ -347,7 +397,7 @@ impl<T: Config> Pallet<T> {
             Ok(())
         })
     }
-
+    /// 判断是否是所有者
     pub fn is_owner(account: &T::AccountId, token: (T::ClassId, T::TokenId)) -> bool {
         TokensByOwner::<T>::contains_key((account, token.0, token.1))
     }

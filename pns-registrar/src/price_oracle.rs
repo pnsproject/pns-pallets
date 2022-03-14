@@ -133,6 +133,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// 设置汇率
         #[pallet::weight(T::WeightInfo::set_exchange_rate())]
         pub fn set_exchange_rate(
             origin: OriginFor<T>,
@@ -147,6 +148,7 @@ pub mod pallet {
             Ok(())
         }
         /// Internal root method.
+        /// 设置基本的价格
         #[pallet::weight(T::WeightInfo::set_base_price())]
         pub fn set_base_price(origin: OriginFor<T>, prices: [BalanceOf<T>; 11]) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
@@ -158,6 +160,7 @@ pub mod pallet {
             Ok(())
         }
         /// Internal root method.
+        /// 设置租期价格
         #[pallet::weight(T::WeightInfo::set_rent_price())]
         pub fn set_rent_price(origin: OriginFor<T>, prices: [BalanceOf<T>; 11]) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
@@ -169,6 +172,7 @@ pub mod pallet {
             Ok(())
         }
         /// Internal root method.
+        /// 设置押金
         #[pallet::weight(T::WeightInfo::set_deposit_price())]
         pub fn set_deposit_price(
             origin: OriginFor<T>,
@@ -199,50 +203,65 @@ impl<T: Config> PriceOracle for Pallet<T> {
     type Duration = T::Moment;
 
     type Balance = BalanceOf<T>;
-
+    /// 押金的计算方式
     fn deposit_fee(name_len: usize) -> Option<Self::Balance> {
+        // 获取押金表
         let deposit_prices = DepositPrice::<T>::get();
+        // 查看押金表长度
         let prices_len = deposit_prices.len();
+        // 当name的长度小于押金表长度时，长度定为1或者name长度，否则定为价格的长度
         let len = if name_len < prices_len {
             name_len.max(1)
         } else {
             prices_len
         };
+        // 读取汇率
         let exchange_rate = T::ExchangeRate::get_exchange_rate();
+        // 获取押金乘上汇率
         deposit_prices[len - 1].checked_mul(&exchange_rate)
     }
-
+    /// 计算注册费
     fn registration_fee(name_len: usize) -> Option<Self::Balance> {
+        // 获取基本价格表
         let base_prices = BasePrice::<T>::get();
+        // 获取长度
         let prices_len = base_prices.len();
         let len = if name_len < prices_len {
             name_len.max(1)
         } else {
             prices_len
         };
+        // 获取汇率
         let exchange_rate = T::ExchangeRate::get_exchange_rate();
-
+        // 计算价格
         base_prices[len - 1].checked_mul(&exchange_rate)
     }
-
+    /// 计算注册的实际费用
     fn register_fee(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
+        // 计算注册费
         let register_price = Self::registration_fee(name_len)?;
+        // 计算租借费
         let rent_price = Self::renew_fee(name_len, duration)?;
-
+        // 返回总的费用
         Some(register_price + rent_price)
     }
+    // 计算续费所需的价格（同时也是租借费）
     fn renew_fee(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
+        // 获取价格表
         let rent_prices = RentPrice::<T>::get();
+        // 获取长度
         let prices_len = rent_prices.len();
         let len = if name_len < prices_len {
             name_len.max(1)
         } else {
             prices_len
         };
+        // 获取时间
         let duration = duration.saturated_into::<u128>();
+        // 计算单秒价格
         let rent_price = (rent_prices[len - 1].checked_mul(&T::ExchangeRate::get_exchange_rate()))?
             .saturated_into::<u128>();
-
+        // 乘上时间
         rent_price
             .checked_mul(duration)
             .map(|res| res.saturated_into::<Self::Balance>())

@@ -83,6 +83,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// 设置域名分发中心是否开启
         #[pallet::weight(T::WeightInfo::set_registrar_open())]
         pub fn set_registrar_open(origin: OriginFor<T>, is_open: bool) -> DispatchResult {
             let _who = Self::ensure_origin(origin)?;
@@ -91,6 +92,7 @@ pub mod pallet {
 
             Ok(())
         }
+        /// 设置管理员
         #[pallet::weight(T::WeightInfo::set_origin(*approved))]
         pub fn set_origin(
             origin: OriginFor<T>,
@@ -110,6 +112,7 @@ pub mod pallet {
 
             Ok(())
         }
+        /// 设置管理员，但是需要root权限
         #[pallet::weight(T::WeightInfo::set_origin_for_root(*approved))]
         pub fn set_origin_for_root(
             origin: OriginFor<T>,

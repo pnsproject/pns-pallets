@@ -40,7 +40,7 @@ pub trait Registry: NFT<Self::AccountId> {
     fn mint_subname(
         node_owner: &Self::AccountId,
         node: Self::Hash,
-        label_node: Self::Hash,
+        subnode: Self::Hash,
         to: Self::AccountId,
         capacity: u32,
         do_payments: impl FnOnce(Option<&Self::AccountId>) -> DispatchResult,

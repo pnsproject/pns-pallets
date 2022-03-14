@@ -49,8 +49,6 @@ impl pns_resolvers::resolvers::Config for Test {
 
     type WeightInfo = ();
 
-    type AccountIndex = u32;
-
     type RegistryChecker = TestChecker;
 
     type DomainHash = Hash;

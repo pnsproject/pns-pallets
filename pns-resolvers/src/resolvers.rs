@@ -17,9 +17,7 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
-    use sp_runtime::traits::{
-        AtLeast32BitUnsigned, CheckEqual, MaybeDisplay, MaybeMallocSizeOf, SimpleBitOps,
-    };
+    use sp_runtime::traits::{CheckEqual, MaybeDisplay, MaybeMallocSizeOf, SimpleBitOps};
     use sp_std::vec;
     use sp_std::vec::Vec;
 
@@ -30,11 +28,9 @@ pub mod pallet {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         type WeightInfo: WeightInfo;
-
-        type AccountIndex: Parameter + Member + AtLeast32BitUnsigned + Default + Copy;
-
+        /// 域名使用权限检查接口
         type RegistryChecker: RegistryChecker<Hash = Self::DomainHash, AccountId = Self::AccountId>;
-
+        /// 域名哈希
         type DomainHash: Parameter
             + Member
             + MaybeSerializeDeserialize
@@ -69,9 +65,13 @@ pub mod pallet {
         Deserialize,
     )]
     pub enum Address<Id> {
+        /// substrate 地址
         Substrate([u8; 32]),
+        /// 比特币地址
         Bitcoin([u8; 25]),
+        /// 以太坊地址
         Ethereum([u8; 20]),
+        /// 当前链定制的特定地址，通常和Substrate地址一致
         Id(Id),
     }
     /// account_id mapping
@@ -91,14 +91,23 @@ pub mod pallet {
         Deserialize,
     )]
     pub enum TextKind {
+        /// 电子邮箱
         Email,
+        /// 地址
         Url,
+        /// 头像
         Avatar,
+        /// 描述
         Description,
+        /// 注意
         Notice,
+        /// 关键字
         Keywords,
+        /// 推特
         Twitter,
+        /// Github地址
         Github,
+        /// IPFS地址
         Ipfs,
     }
     /// text mapping
@@ -170,41 +179,50 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// 设置账户
         #[pallet::weight(T::WeightInfo::set_account())]
         pub fn set_account(
             origin: OriginFor<T>,
+            // 传入的域名哈希
             node: T::DomainHash,
+            // 要设置的地址
             address: Address<T::AccountId>,
         ) -> DispatchResult {
+            // 验证调用者是否签名
             let who = ensure_signed(origin)?;
-
+            // 确定域名修改权限
             ensure!(
                 T::RegistryChecker::check_node_useable(node, &who),
                 Error::<T>::InvalidPermission
             );
-
+            // 插入账户
             Accounts::<T>::insert(node, &address, ());
-
+            // 保存账户更改的事件
             Self::deposit_event(Event::<T>::AddressChanged { node, address });
 
             Ok(())
         }
+        /// 设置文本信息
         #[pallet::weight(T::WeightInfo::set_text(content.0.len() as u32))]
         pub fn set_text(
             origin: OriginFor<T>,
+            // 传入的域名哈希
             node: T::DomainHash,
+            // 文本的类型
             kind: TextKind,
+            // 文本的内容
             content: Content,
         ) -> DispatchResult {
+            // 确保是已经签名的账户
             let who = ensure_signed(origin)?;
-
+            // 确保域名的设置权限
             ensure!(
                 T::RegistryChecker::check_node_useable(node, &who),
                 Error::<T>::InvalidPermission
             );
-
+            // 插入文本
             Texts::<T>::insert(node, &kind, &content);
-
+            // 保存插入文本的事件
             Self::deposit_event(Event::<T>::TextsChanged {
                 node,
                 kind,
@@ -227,6 +245,7 @@ pub trait WeightInfo {
 pub trait RegistryChecker {
     type Hash;
     type AccountId;
+    // 检查节点是否可用的接口
     fn check_node_useable(node: Self::Hash, owner: &Self::AccountId) -> bool;
 }
 

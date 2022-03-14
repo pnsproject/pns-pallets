@@ -209,6 +209,7 @@ pub mod pallet {
 
     // helper
     impl<T: Config> Pallet<T> {
+        /// 验证，给定调用者和域名哈希，内部会验证是否有权限
         #[inline]
         pub fn verify(caller: &T::AccountId, node: T::Hash) -> DispatchResult {
             let owner = &nft::Pallet::<T>::tokens(T::ClassId::zero(), node)
@@ -219,13 +220,14 @@ pub mod pallet {
 
             Ok(())
         }
-
+        /// 验证，但给定owner
         #[inline]
         pub fn verify_with_owner(
             caller: &T::AccountId,
             node: T::Hash,
             owner: &T::AccountId,
         ) -> DispatchResult {
+            // 确保调用者是owner或者有控制权限
             ensure!(
                 caller == owner
                     || OperatorApprovals::<T>::contains_key(owner, caller)
@@ -237,15 +239,31 @@ pub mod pallet {
         }
     }
     impl<T: Config> Pallet<T> {
+        /// 销毁某个域名，调用者必须拥有该域名的控制权限
+        #[cfg_attr(
+            not(feature = "runtime-benchmarks"),
+            frame_support::require_transactional
+        )]
         pub(crate) fn burn(caller: T::AccountId, token: T::TokenId) -> DispatchResult {
+            // 我们当前的域名只有一个类，因此使用的类ID就是0
             let class_id = T::ClassId::zero();
+            // 尝试获取token，若token不存在则返回不存在的错误
             if let Some(token_info) = nft::Pallet::<T>::tokens(class_id, token) {
+                // token当前的owner
                 let token_owner = token_info.owner;
+                // 确保当前token的子域名为零，否则不能销毁，该保证是为了更好的管理域名之间的从属关系
+                // TODO: 另一个需求是用户在拥有大量子域名的同时，想要调用类似burn的功能
+                // 应该准备另一个方法，可以将该域名交易给官方，而不是销毁它
                 ensure!(token_info.data.children == 0, Error::<T>::SubnodeNotClear);
-
+                // 验证权限
                 Self::verify_with_owner(&caller, token, &token_owner)?;
-
+                // 获取该域名的类型，当无法获取时，说明该域名既存在于nft内，但未存在于origin里
+                // 因此只能是basenode，basenode是不允许销毁的
                 if let Some(origin) = Origin::<T>::get(token) {
+                    // 这里有两种可能，一种是该域名是一个根域名，另一种是该域名是一个子域名
+                    // 子域名：要让子域名的origin的子域名数量减去一
+                    // 根域名：需要清理掉该域名的注册信息，比如剩余时间，剩余的押金等
+                    // 押金将会返还给域名的所有者
                     match origin {
                         DomainTracing::Origin(origin) => Self::sub_children(origin, class_id)?,
                         DomainTracing::Root => {
@@ -255,9 +273,9 @@ pub mod pallet {
                 } else {
                     return Err(Error::<T>::BanBurnBaseNode.into());
                 }
-
+                // 调用nft模块的burn接口，销毁掉其nft数据
                 nft::Pallet::<T>::burn(&token_owner, (class_id, token))?;
-
+                // 保存销毁域名的事件
                 Self::deposit_event(Event::<T>::TokenBurned(
                     class_id,
                     token,
@@ -270,80 +288,111 @@ pub mod pallet {
                 Err(Error::<T>::NotExist.into())
             }
         }
-
+        /// 铸造一个子域名
         #[cfg_attr(
             not(feature = "runtime-benchmarks"),
             frame_support::require_transactional
         )]
         pub(crate) fn mint_subname(
+            // 当前域名的所有者，子域名是由一个已经存在的域名来铸造的
             owner: &T::AccountId,
+            // 元数据，目前传递的值都是空
             metadata: Vec<u8>,
+            // 当前域名的哈希
             node: T::Hash,
-            label_node: T::Hash,
+            // 当前需要铸造的子域名的名字部分的哈希
+            // 例如 cupnfish.dot
+            // 这里就需要的是 cupnfish.dot 的哈希值
+            // TODO: 从label_node改名为subnode更合理
+            subnode: T::Hash,
+            // 铸造的子域名的所有者
             to: T::AccountId,
+            // 当前域名的最大容量
+            // 这个属性是存放在域名分发中心的
             capacity: u32,
             // `[maybe_pre_owner]`
+            // 执行一些交易，这里主要是执行两个交易
+            // 一、 收取 `to` 的注册费、押金
+            // 二、 如果在铸造给新的 `to` 时，之前存在过所有者，则退还之前的押金给之前的所有者
             do_payments: impl FnOnce(Option<&T::AccountId>) -> DispatchResult,
         ) -> DispatchResult {
+            // 默认域名的class id
             let class_id = T::ClassId::zero();
             // dot: hash 0xce159cf34380757d1932a8e4a74e85e85957b0a7a52d9c566c0a3c8d6133d0f7
             // [206, 21, 156, 243, 67, 128, 117, 125, 25, 50, 168, 228, 167, 78, 133, 232, 89, 87,
             // 176, 167, 165, 45, 156, 86, 108, 10, 60, 141, 97, 51, 208, 247]
+            // 获取当前域名的信息
             if let Some(node_info) = nft::Pallet::<T>::tokens(class_id, node) {
+                // 当前域名的所有者
                 let node_owner = node_info.owner;
-
+                // 验证调用者是否有权限操纵当前域名
                 Self::verify_with_owner(owner, node, &node_owner)?;
-
-                if let Some(info) = nft::Tokens::<T>::get(class_id, label_node) {
-                    T::Registrar::check_expires_registrable(label_node)?;
+                // 获取当前的子域名信息
+                if let Some(info) = nft::Tokens::<T>::get(class_id, subnode) {
+                    // 存在的情况下，说明该哈希现在是被注册的
+                    // 检查一下是否处于可注册状态，比如之前的注册时间已过期
+                    // TODO: 这里可能会出现一个bug
+                    // 如果这不是一个根域名
+                    // 只是一个被注册过的子域名，那么检查可用性是会返回错误的
+                    // 但实际上我们不需要返回错误，而是将其所有权转移即可
+                    T::Registrar::check_expires_registrable(subnode)?;
 
                     let from = info.owner;
-
+                    // 做一些交易
+                    // 一、返回押金给前一个拥有着
+                    // 二、支付押金和注册费
                     do_payments(Some(&from))?;
 
-                    nft::Pallet::<T>::transfer(&from, &to, (class_id, label_node))?;
+                    nft::Pallet::<T>::transfer(&from, &to, (class_id, subnode))?;
                 } else {
+                    // 支付押金和注册费（在铸造子域名的分发接口内不执行任何支付操作）
                     do_payments(None)?;
-
-                    nft::Pallet::<T>::mint(
-                        &to,
-                        (class_id, label_node),
-                        metadata,
-                        Default::default(),
-                    )?;
-
+                    // 因为不存在该域名，所以调用nft模块的铸造接口
+                    nft::Pallet::<T>::mint(&to, (class_id, subnode), metadata, Default::default())?;
+                    // 检查当前域名是否有足够的容量创建其子域名
                     if let Some(origin) = Origin::<T>::get(node) {
                         match origin {
+                            // 如果当前域名是基于普通的root根域名
                             DomainTracing::Origin(origin) => {
+                                // 检查该根域名是否可用
                                 T::Registrar::check_expires_useable(origin)?;
-
+                                // 检查并增加容量占有值
                                 Self::add_children_with_check(origin, class_id, capacity)?;
-
+                                // NOTE: 给当前node增加子域名数（该数有歧义，只能记录直属子域名的个数，隔代子域名的个数不会被记录）
                                 Self::add_children(node, class_id)?;
-
-                                Origin::<T>::insert(label_node, DomainTracing::Origin(origin));
+                                // 插入当前子域名关系列表
+                                Origin::<T>::insert(subnode, DomainTracing::Origin(origin));
                             }
+                            // 如果是当前域名是基于basenode
                             DomainTracing::Root => {
+                                // 检查并增加当前域名的子域名数量
                                 Self::add_children_with_check(node, class_id, capacity)?;
-
-                                Origin::<T>::insert(label_node, DomainTracing::Origin(node));
+                                // 插入子域名关系列表
+                                Origin::<T>::insert(subnode, DomainTracing::Origin(node));
                             }
                         }
                     } else {
+                        // 如果都不是则说明node是basenode
+                        // 增加basenode的子域名数量
                         Self::add_children(node, class_id)?;
-
-                        Origin::<T>::insert(label_node, DomainTracing::Root);
+                        // 插入子域名关系表
+                        Origin::<T>::insert(subnode, DomainTracing::Root);
                     }
                 }
-                Self::deposit_event(Event::<T>::TokenMinted(class_id, label_node, node, to));
+                // 保存代币铸造事件
+                Self::deposit_event(Event::<T>::TokenMinted(class_id, subnode, node, to));
 
                 Ok(())
             } else {
+                // 返回node不存在的错误
                 Err(Error::<T>::NotExist.into())
             }
         }
+        /// 增加node子域名数量
         pub(crate) fn add_children(node: T::Hash, class_id: T::ClassId) -> DispatchResult {
+            // 更改代币数据
             nft::Tokens::<T>::mutate(class_id, node, |data| -> DispatchResult {
+                // 存在时自增即可
                 if let Some(info) = data {
                     let node_children = info.data.children;
                     info.data.children = node_children + 1;
@@ -353,6 +402,7 @@ pub mod pallet {
                 }
             })
         }
+        // 增加node子域名数量，但会比较当前已有的数量是否大于容量
         fn add_children_with_check(
             node: T::Hash,
             class_id: T::ClassId,
@@ -361,6 +411,7 @@ pub mod pallet {
             nft::Tokens::<T>::mutate(class_id, node, |data| -> DispatchResult {
                 if let Some(info) = data {
                     let node_children = info.data.children;
+                    // 比上一个方法多了教研容量的部分
                     ensure!(node_children < capacity, Error::<T>::CapacityNotEnough);
                     info.data.children = node_children + 1;
                     Ok(())
@@ -370,6 +421,7 @@ pub mod pallet {
             })
         }
         /// Ensure `from` is a caller.
+        /// 交易一个域名
         #[cfg_attr(
             not(feature = "runtime-benchmarks"),
             frame_support::require_transactional
@@ -380,33 +432,40 @@ pub mod pallet {
             token: T::TokenId,
         ) -> DispatchResult {
             let class_id = T::ClassId::zero();
+            // 获取该域名的信息
             let token_info =
                 nft::Pallet::<T>::tokens(class_id, token).ok_or(Error::<T>::NotExist)?;
-
+            // 获取该域名的实际所有者
             let owner = token_info.owner;
-
+            // 验证from是否有权限交易该域名
             Self::verify_with_owner(from, token, &owner)?;
-
+            // 获取关系
             if let Some(origin) = Origin::<T>::get(token) {
                 match origin {
+                    // 属于一个用户自建的子域名
                     DomainTracing::Origin(origin) => {
+                        // 判断该子域名的始祖域名是否可续费
+                        // 只要在可续费范围内均可交易出去
                         T::Registrar::check_expires_renewable(origin)?;
                     }
+                    // 属于一个正常的根域名
                     DomainTracing::Root => {
+                        // 检查当前域名是否处于可续费范围内
                         T::Registrar::check_expires_renewable(token)?;
                     }
                 }
             } else {
+                // 不存在则返回错误
                 return Err(Error::<T>::NotExist.into());
             }
-
+            // 调用nft模块的交易接口
             nft::Pallet::<T>::transfer(&owner, to, (class_id, token))?;
-
+            // 保存交易事件
             Self::deposit_event(Event::<T>::Transferred(owner, to.clone(), class_id, token));
 
             Ok(())
         }
-
+        /// 减去子域名数量
         fn sub_children(node: T::Hash, class_id: T::ClassId) -> DispatchResult {
             nft::Tokens::<T>::mutate(class_id, node, |data| -> DispatchResult {
                 if let Some(info) = data {
@@ -423,6 +482,7 @@ pub mod pallet {
     }
     // 可直接使用不需要考虑权限问题的方法
     impl<T: Config> Pallet<T> {
+        // 将caller的权限设置给operator
         #[inline(always)]
         fn do_set_approval_for_all(caller: T::AccountId, operator: T::AccountId, approved: bool) {
             OperatorApprovals::<T>::mutate_exists(&caller, &operator, |flag| {
@@ -435,6 +495,7 @@ pub mod pallet {
             Self::deposit_event(Event::ApprovalForAll(caller, operator, approved));
         }
         // 给Rpc调用
+        // 获取一个caller的所有的operatore
         #[inline(always)]
         pub fn get_operators(caller: T::AccountId) -> Vec<T::AccountId> {
             OperatorApprovals::<T>::iter_prefix(caller)
@@ -446,6 +507,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Sharing your account permissions with others is a discreet operation,
         /// and when methods such as `reclaim` are called, the deposit is returned to the caller.
+        /// 将调用者的操作权限分享给操作者
         #[pallet::weight(T::WeightInfo::approval_for_all(*approved))]
         pub fn approval_for_all(
             origin: OriginFor<T>,
@@ -459,6 +521,7 @@ pub mod pallet {
             Ok(())
         }
         /// Set the resolver address.
+        /// 设置resolver的ID
         #[pallet::weight(T::WeightInfo::set_resolver())]
         pub fn set_resolver(
             origin: OriginFor<T>,
@@ -477,6 +540,8 @@ pub mod pallet {
         /// when the domain is registered by another user.
         ///
         /// Ensure: The number of subdomains for this domain must be zero.
+        /// 销毁一个域名
+        /// TODO: bug，当该域名存在子域名时，不能正常销毁
         #[pallet::weight(T::WeightInfo::destroy())]
         pub fn destroy(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
             let caller = ensure_signed(origin)?;
@@ -485,15 +550,17 @@ pub mod pallet {
 
             Ok(())
         }
-
+        /// 设置官方账号
         #[pallet::weight(T::WeightInfo::set_official())]
         #[frame_support::transactional]
         pub fn set_official(origin: OriginFor<T>, official: T::AccountId) -> DispatchResult {
+            // 必须是管理员才能调用
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
+            // 获取之前的官方账号
             let old_official = Official::<T>::take();
-
+            // 设置为新的官方账号
             Official::<T>::put(&official);
-
+            // 如果之前有老的官方账号，则把basenode的所有权交易到新的官方账号
             if let Some(old_official) = old_official {
                 nft::Pallet::<T>::transfer(
                     &old_official,
@@ -501,7 +568,8 @@ pub mod pallet {
                     (T::ClassId::zero(), T::Registrar::basenode()),
                 )?;
             }
-
+            // 该类的所有权也更改为新的（实际上这里并不重要，因为销毁类必须在发行量为零时才能销毁
+            // 因此这里的更改只是让这部分数据看起来更合理
             nft::Classes::<T>::mutate(T::ClassId::zero(), |info| {
                 if let Some(info) = info {
                     info.owner = official;
@@ -510,7 +578,7 @@ pub mod pallet {
 
             Ok(())
         }
-
+        /// 将一个域名授权给一个账户
         #[pallet::weight(T::WeightInfo::approve(*approved))]
         pub fn approve(
             origin: OriginFor<T>,
@@ -518,16 +586,17 @@ pub mod pallet {
             node: T::Hash,
             approved: bool,
         ) -> DispatchResult {
+            // 调用者必须签名
             let sender = ensure_signed(origin)?;
-
+            // 获取当前域名的所有者
             let owner = nft::Pallet::<T>::tokens(T::ClassId::zero(), node)
                 .ok_or(Error::<T>::NotExist)?
                 .owner;
-
+            // 确保to不是所有者
             ensure!(to != owner, Error::<T>::ApprovalFailure);
-
+            // 验证调用者权限
             Self::verify_with_owner(&sender, node, &owner)?;
-
+            // 设置权限
             if approved {
                 TokenApprovals::<T>::insert(node, to, ());
             } else {
@@ -609,7 +678,7 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
     fn mint_subname(
         node_owner: &Self::AccountId,
         node: Self::Hash,
-        label_node: Self::Hash,
+        subnode: Self::Hash,
         to: Self::AccountId,
         capacity: u32,
         do_payments: impl FnOnce(Option<&T::AccountId>) -> DispatchResult,
@@ -619,7 +688,7 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
             node_owner,
             metadata,
             node,
-            label_node,
+            subnode,
             to,
             capacity,
             do_payments,
