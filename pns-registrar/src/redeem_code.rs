@@ -117,8 +117,11 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// When the redemption code is used, it will be logged.
-        /// (`code`,`node`,`to`)
-        RedeemCodeUsed(T::Signature, T::Hash, T::AccountId),
+        RedeemCodeUsed {
+            code: T::Signature,
+            node: T::Hash,
+            to: T::AccountId,
+        },
     }
 
     #[pallet::error]
@@ -206,7 +209,11 @@ pub mod pallet {
 
             Redeems::<T>::remove(nouce);
 
-            Self::deposit_event(Event::<T>::RedeemCodeUsed(code, node, owner));
+            Self::deposit_event(Event::<T>::RedeemCodeUsed {
+                code,
+                node,
+                to: owner,
+            });
 
             Ok(())
         }
@@ -258,7 +265,11 @@ pub mod pallet {
 
             Redeems::<T>::remove(nouce);
 
-            Self::deposit_event(Event::<T>::RedeemCodeUsed(code, node, owner));
+            Self::deposit_event(Event::<T>::RedeemCodeUsed {
+                code,
+                node,
+                to: owner,
+            });
 
             Ok(())
         }

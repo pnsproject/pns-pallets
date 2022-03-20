@@ -188,15 +188,31 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// When a domain name is successfully registered, this moment will be logged.
-        /// `[name,node,owner,expire]`
-        NameRegistered(Vec<u8>, T::Hash, T::AccountId, T::Moment),
+        NameRegistered {
+            name: Vec<u8>,
+            node: T::Hash,
+            owner: T::AccountId,
+            expire: T::Moment,
+        },
         // to frontend call
         /// When a domain name is successfully renewed, this moment will be logged.
-        /// `[name,node,duration]`
-        NameRenewed(Vec<u8>, T::Hash, T::Moment),
+        NameRenewed {
+            name: Vec<u8>,
+            node: T::Hash,
+            duration: T::Moment,
+            expire: T::Moment,
+        },
         /// When a sub-domain name is successfully registered, this moment will be logged.
-        /// `[label,subnode,owner,node]`
-        SubnameRegistered(Vec<u8>, T::Hash, T::AccountId, T::Hash),
+        SubnameRegistered {
+            label: Vec<u8>,
+            subnode: T::Hash,
+            owner: T::AccountId,
+            node: T::Hash,
+        },
+        /// Reserve a domain name.
+        NameReserved { node: T::Hash },
+        /// Cancel a reserved domain name.
+        NameUnReserved { node: T::Hash },
     }
 
     #[pallet::error]
@@ -236,7 +252,9 @@ pub mod pallet {
         pub fn add_reserved(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
-            ReservedList::<T>::insert(node, ());
+            ReservedList::<T>::insert(&node, ());
+
+            Self::deposit_event(Event::<T>::NameReserved { node });
             Ok(())
         }
         /// Remove a domain from the reserved list
@@ -245,7 +263,9 @@ pub mod pallet {
         pub fn remove_reserved(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
-            ReservedList::<T>::remove(node);
+            ReservedList::<T>::remove(&node);
+
+            Self::deposit_event(Event::<T>::NameUnReserved { node });
             Ok(())
         }
         /// Register a domain name.
@@ -349,7 +369,12 @@ pub mod pallet {
                 },
             )?;
 
-            Self::deposit_event(Event::<T>::NameRegistered(name, label_node, owner, expire));
+            Self::deposit_event(Event::<T>::NameRegistered {
+                name,
+                node: label_node,
+                owner,
+                expire,
+            });
 
             Ok(())
         }
@@ -395,7 +420,12 @@ pub mod pallet {
                     ExistenceRequirement::KeepAlive,
                 )?;
                 info.expire = target_expire;
-                Self::deposit_event(Event::<T>::NameRenewed(name, label_node, target_expire));
+                Self::deposit_event(Event::<T>::NameRenewed {
+                    name,
+                    node: label_node,
+                    duration,
+                    expire: target_expire,
+                });
                 Ok(())
             })
         }
@@ -456,7 +486,12 @@ pub mod pallet {
             let (label, _) = Label::new(&data).ok_or(Error::<T>::ParseLabelFailed)?;
             let label_node = label.encode_with_node(&node);
             T::Registry::mint_subname(&caller, node, label_node, to.clone(), capacity, |_| Ok(()))?;
-            Self::deposit_event(Event::<T>::SubnameRegistered(data, label_node, to, node));
+            Self::deposit_event(Event::<T>::SubnameRegistered {
+                label: data,
+                subnode: label_node,
+                owner: to,
+                node,
+            });
 
             Ok(())
         }
@@ -619,7 +654,12 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
                 Ok(())
             },
         )?;
-        Self::deposit_event(Event::<T>::NameRegistered(name, label_node, to, expire));
+        Self::deposit_event(Event::<T>::NameRegistered {
+            name,
+            node: label_node,
+            owner: to,
+            expire,
+        });
 
         Ok(())
     }

@@ -161,27 +161,39 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Logged when the owner of a node assigns a new owner to a subnode.
-        /// `[node,owner]`
-        NewOwner(T::Hash, T::AccountId),
         /// Logged when the resolver for a node changes.
-        /// `[node,resolver]`
-        NewResolver(T::Hash, T::ResolverId),
+        NewResolver {
+            node: T::Hash,
+            resolver: T::ResolverId,
+        },
         /// Logged when an operator is added or removed.
-        /// `[owner,operator,approved]`
-        ApprovalForAll(T::AccountId, T::AccountId, bool),
+        ApprovalForAll {
+            owner: T::AccountId,
+            operator: T::AccountId,
+            approved: bool,
+        },
         /// Logged when a node is traded.
-        /// `[from,to,class_id,token_id]`
-        Transferred(T::AccountId, T::AccountId, T::ClassId, T::TokenId),
+        Transferred {
+            from: T::AccountId,
+            to: T::AccountId,
+            class_id: T::ClassId,
+            token_id: T::TokenId,
+        },
         /// Logged when a node is minted.
-        /// `[class_id,token_id,node,owner]`
-        TokenMinted(T::ClassId, T::TokenId, T::Hash, T::AccountId),
+        TokenMinted {
+            class_id: T::ClassId,
+            token_id: T::TokenId,
+            node: T::Hash,
+            owner: T::AccountId,
+        },
         /// Logged when a node is burned.
-        /// `[class_id,token_id,node,owner,caller]`
-        TokenBurned(T::ClassId, T::TokenId, T::Hash, T::AccountId, T::AccountId),
-        ///  Logged when a node is reclaimed.
-        /// `[node,owner]`
-        Reclaimed(T::Hash, T::AccountId),
+        TokenBurned {
+            class_id: T::ClassId,
+            token_id: T::TokenId,
+            node: T::Hash,
+            owner: T::AccountId,
+            caller: T::AccountId,
+        },
     }
 
     #[pallet::error]
@@ -258,13 +270,13 @@ pub mod pallet {
 
                 nft::Pallet::<T>::burn(&token_owner, (class_id, token))?;
 
-                Self::deposit_event(Event::<T>::TokenBurned(
+                Self::deposit_event(Event::<T>::TokenBurned {
                     class_id,
-                    token,
-                    token,
-                    token_owner,
+                    token_id: token,
+                    node: token,
+                    owner: token_owner,
                     caller,
-                ));
+                });
                 Ok(())
             } else {
                 Err(Error::<T>::NotExist.into())
@@ -335,7 +347,12 @@ pub mod pallet {
                         Origin::<T>::insert(label_node, DomainTracing::Root);
                     }
                 }
-                Self::deposit_event(Event::<T>::TokenMinted(class_id, label_node, node, to));
+                Self::deposit_event(Event::<T>::TokenMinted {
+                    class_id,
+                    token_id: label_node,
+                    node,
+                    owner: to,
+                });
 
                 Ok(())
             } else {
@@ -402,7 +419,12 @@ pub mod pallet {
 
             nft::Pallet::<T>::transfer(&owner, to, (class_id, token))?;
 
-            Self::deposit_event(Event::<T>::Transferred(owner, to.clone(), class_id, token));
+            Self::deposit_event(Event::<T>::Transferred {
+                from: owner,
+                to: to.clone(),
+                class_id,
+                token_id: token,
+            });
 
             Ok(())
         }
@@ -432,15 +454,19 @@ pub mod pallet {
                     flag.take()
                 }
             });
-            Self::deposit_event(Event::ApprovalForAll(caller, operator, approved));
+            Self::deposit_event(Event::ApprovalForAll {
+                owner: caller,
+                operator,
+                approved,
+            });
         }
         // 给Rpc调用
-        #[inline(always)]
-        pub fn get_operators(caller: T::AccountId) -> Vec<T::AccountId> {
-            OperatorApprovals::<T>::iter_prefix(caller)
-                .map(|(operator, _)| operator)
-                .collect()
-        }
+        // #[inline(always)]
+        // pub fn get_operators(caller: T::AccountId) -> Vec<T::AccountId> {
+        //     OperatorApprovals::<T>::iter_prefix(caller)
+        //         .map(|(operator, _)| operator)
+        //         .collect()
+        // }
     }
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -467,7 +493,9 @@ pub mod pallet {
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
             Self::verify(&caller, node)?;
-            Resolver::<T>::mutate(node, |rs| *rs = resolver);
+            Resolver::<T>::mutate(&node, |rs| *rs = resolver.clone());
+
+            Self::deposit_event(Event::<T>::NewResolver { node, resolver });
             Ok(())
         }
         /// Burn your node.
