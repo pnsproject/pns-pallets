@@ -23,7 +23,7 @@
 //! - `remove_reserved` - removes a reserved domain name, requires manager privileges
 //! - `register` - register a domain name
 //! - `renew` - renew a domain name, requires caller to have permission to operate the domain
-//! - `set_owner` - transfer a domain name, requires the caller to have permission to operate the domain name
+//! - `transfer` - transfer a domain name, requires the caller to have permission to operate the domain name
 //! - `mint_subname` - Cast a subdomain, requires the caller to have permission to operate the domain
 //!
 //! There is a problem with the part about deposits, first review the process of collecting deposits:
@@ -438,9 +438,9 @@ pub mod pallet {
         /// i.e. the deposit of the domain name traded out will have nothing to do with you.
         ///
         /// Ensure: The front-end should remind the user of the notes.
-        #[pallet::weight(T::WeightInfo::set_owner())]
+        #[pallet::weight(T::WeightInfo::transfer())]
         #[frame_support::transactional]
-        pub fn set_owner(
+        pub fn transfer(
             origin: OriginFor<T>,
             to: <T::Lookup as StaticLookup>::Source,
             node: T::Hash,
@@ -513,7 +513,7 @@ pub trait WeightInfo {
     fn mint_subname(len: u32) -> Weight;
     fn register(len: u32) -> Weight;
     fn renew(len: u32) -> Weight;
-    fn set_owner() -> Weight;
+    fn transfer() -> Weight;
     fn add_reserved() -> Weight;
     fn remove_reserved() -> Weight;
 }
@@ -692,7 +692,7 @@ impl WeightInfo for () {
         0
     }
 
-    fn set_owner() -> Weight {
+    fn transfer() -> Weight {
         0
     }
 

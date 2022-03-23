@@ -144,7 +144,7 @@ fn register_test() {
         let info = registrar::RegistrarInfos::<Test>::get(node).unwrap();
 
         assert_noop!(
-            Registrar::set_owner(Origin::signed(MONEY_ACCOUNT), RICH_ACCOUNT, node),
+            Registrar::transfer(Origin::signed(MONEY_ACCOUNT), RICH_ACCOUNT, node),
             registry::Error::<Test>::NoPermission
         );
 
@@ -163,7 +163,7 @@ fn register_test() {
 
         assert!(Nft::is_owner(&RICH_ACCOUNT, (0, node)));
 
-        assert_ok!(Registrar::set_owner(
+        assert_ok!(Registrar::transfer(
             Origin::signed(RICH_ACCOUNT),
             MONEY_ACCOUNT,
             node
@@ -171,7 +171,7 @@ fn register_test() {
 
         assert!(Nft::is_owner(&MONEY_ACCOUNT, (0, node)));
 
-        assert_ok!(Registrar::set_owner(
+        assert_ok!(Registrar::transfer(
             Origin::signed(MONEY_ACCOUNT),
             RICH_ACCOUNT,
             node

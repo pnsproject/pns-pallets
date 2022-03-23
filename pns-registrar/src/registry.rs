@@ -14,7 +14,7 @@
 //!
 //! - `approval_for_all` - share the permissions of all your domains to other accounts
 //! - `set_resolver` - set the resolver address of a domain name, which requires permission to operate that domain
-//! - `destroy` - destroy a domain, return it to the owner if there is a deposit, requires the domain's operational privileges
+//! - `burn` - destroy a domain, return it to the owner if there is a deposit, requires the domain's operational privileges
 //! - `set_official` - Set official account, needs manager privileges
 //! - `approve` - share the permission of a domain to another account, requires the permission of the domain
 
@@ -249,7 +249,7 @@ pub mod pallet {
         }
     }
     impl<T: Config> Pallet<T> {
-        pub(crate) fn burn(caller: T::AccountId, token: T::TokenId) -> DispatchResult {
+        pub(crate) fn do_burn(caller: T::AccountId, token: T::TokenId) -> DispatchResult {
             let class_id = T::ClassId::zero();
             if let Some(token_info) = nft::Pallet::<T>::tokens(class_id, token) {
                 let token_owner = token_info.owner;
@@ -505,11 +505,11 @@ pub mod pallet {
         /// when the domain is registered by another user.
         ///
         /// Ensure: The number of subdomains for this domain must be zero.
-        #[pallet::weight(T::WeightInfo::destroy())]
-        pub fn destroy(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
+        #[pallet::weight(T::WeightInfo::burn())]
+        pub fn burn(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
             let caller = ensure_signed(origin)?;
 
-            Self::burn(caller, node)?;
+            Self::do_burn(caller, node)?;
 
             Ok(())
         }
@@ -583,7 +583,7 @@ pub trait WeightInfo {
     fn approval_for_all_true() -> Weight;
     fn approval_for_all_false() -> Weight;
     fn set_resolver() -> Weight;
-    fn destroy() -> Weight;
+    fn burn() -> Weight;
     fn set_official() -> Weight;
     fn approve(approved: bool) -> Weight {
         if approved {
@@ -686,7 +686,7 @@ impl WeightInfo for () {
         0
     }
 
-    fn destroy() -> Weight {
+    fn burn() -> Weight {
         0
     }
 

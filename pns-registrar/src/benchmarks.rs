@@ -115,7 +115,7 @@ mod registry {
         verify {
             assert_eq!(crate::registry::Resolver::<T>::get(node), T::ResolverId::default());
         }
-        destroy {
+        burn {
             let (owner,node) = get_account_and_node::<T>("caller",3)?;
         }: _(RawOrigin::Signed(owner), node)
         verify {
@@ -231,7 +231,7 @@ mod registrar {
         }:_(RawOrigin::Signed(rich_account),name,T::MinRegistrationDuration::get())
 
 
-        set_owner {
+        transfer {
             let name = get_name(MIN_REGISTRABLE_LEN);
             let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get());
             let rich_account = create_caller::<T>(8);
