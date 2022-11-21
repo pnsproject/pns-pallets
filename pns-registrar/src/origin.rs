@@ -1,4 +1,4 @@
-//! # PNS Origin
+//! # PNS RuntimeOrigin
 //!
 //! This module is responsible for providing administrator account
 //! authentication for `pns-pallets`. Considering that `pns-pallets`
@@ -28,7 +28,7 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         type WeightInfo: WeightInfo;
     }
@@ -134,28 +134,28 @@ pub mod pallet {
 use frame_support::{dispatch::Weight, traits::EnsureOrigin};
 use frame_system::RawOrigin;
 
-impl<T: Config> EnsureOrigin<T::Origin> for Pallet<T> {
+impl<T: Config> EnsureOrigin<T::RuntimeOrigin> for Pallet<T> {
     type Success = T::AccountId;
-    fn try_origin(o: T::Origin) -> Result<Self::Success, T::Origin> {
+    fn try_origin(o: T::RuntimeOrigin) -> Result<Self::Success, T::RuntimeOrigin> {
         o.into().and_then(|o| match o {
             RawOrigin::<T::AccountId>::Signed(who) if Origins::<T>::contains_key(&who) => Ok(who),
-            r => Err(T::Origin::from(r)),
+            r => Err(T::RuntimeOrigin::from(r)),
         })
     }
 
     #[cfg(feature = "runtime-benchmarks")]
-    fn successful_origin() -> T::Origin {
+    fn successful_origin() -> T::RuntimeOrigin {
         use codec::Decode;
 
         if let Some(o) = Origins::<T>::iter_keys().next() {
-            return T::Origin::from(RawOrigin::Signed(o));
+            return T::RuntimeOrigin::from(RawOrigin::Signed(o));
         }
 
         let zero_account_id =
             T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
                 .expect("infinite length input; no invalid inputs for type; qed");
 
-        T::Origin::from(RawOrigin::Signed(zero_account_id))
+        T::RuntimeOrigin::from(RawOrigin::Signed(zero_account_id))
     }
 }
 
@@ -189,22 +189,22 @@ pub trait WeightInfo {
 
 impl WeightInfo for () {
     fn set_registrar_open() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn set_origin_true() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn set_origin_false() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn set_origin_for_root_true() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn set_origin_for_root_false() -> Weight {
-        0
+        Weight::zero()
     }
 }

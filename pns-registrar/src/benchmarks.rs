@@ -75,13 +75,13 @@ mod registry {
             Default::default(),
         )?;
         use crate::registry::DomainTracing;
-        use crate::registry::Origin;
-        if Origin::<T>::get(T::Registrar::basenode()).is_some() {
+        use crate::registry::RuntimeOrigin;
+        if RuntimeOrigin::<T>::get(T::Registrar::basenode()).is_some() {
             panic!("Unexpected arm");
         } else {
             Pallet::<T>::add_children(T::Registrar::basenode(), class_id)?;
 
-            Origin::<T>::insert(node, DomainTracing::Root);
+            RuntimeOrigin::<T>::insert(node, DomainTracing::Root);
         }
 
         Ok((owner, node))

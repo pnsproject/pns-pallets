@@ -41,7 +41,7 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         type Currency: Currency<Self::AccountId>;
 
@@ -61,7 +61,7 @@ pub mod pallet {
 
         type WeightInfo: WeightInfo;
 
-        type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
+        type ManagerOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -259,18 +259,18 @@ impl<T: Config> ExchangeRateT for Pallet<T> {
 
 impl WeightInfo for () {
     fn set_exchange_rate() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn set_base_price() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn set_rent_price() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn set_deposit_price() -> Weight {
-        0
+        Weight::zero()
     }
 }

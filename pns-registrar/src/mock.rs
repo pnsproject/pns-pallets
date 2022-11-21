@@ -45,7 +45,7 @@ frame_support::construct_runtime!(
 );
 
 impl pns_resolvers::resolvers::Config for Test {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
 
     type WeightInfo = ();
 
@@ -57,7 +57,7 @@ impl pns_resolvers::resolvers::Config for Test {
 }
 
 impl crate::origin::Config for Test {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
 
     type WeightInfo = ();
 }
@@ -86,8 +86,8 @@ impl frame_system::Config for Test {
     type BlockWeights = ();
     type BlockLength = ();
     type DbWeight = ();
-    type Origin = Origin;
-    type Call = Call;
+    type RuntimeOrigin = RuntimeOrigin;
+    type RuntimeCall = RuntimeCall;
     type Index = u64;
     type BlockNumber = u64;
     type Hash = H256;
@@ -95,7 +95,7 @@ impl frame_system::Config for Test {
     type AccountId = AccountId;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type BlockHashCount = BlockHashCount;
     type Version = ();
     type PalletInfo = PalletInfo;
@@ -200,7 +200,7 @@ impl crate::nft::Config for Test {
 }
 
 impl crate::registry::Config for Test {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
 
     type WeightInfo = ();
 
@@ -221,7 +221,7 @@ parameter_types! {
 pub type Moment = u64;
 
 impl crate::registrar::Config for Test {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
 
     type ResolverId = u32;
 
@@ -253,7 +253,7 @@ impl crate::registrar::Config for Test {
 }
 
 impl crate::price_oracle::Config for Test {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
 
     type Currency = pallet_balances::Pallet<Test>;
 
@@ -277,7 +277,7 @@ impl crate::traits::ExchangeRate for TestRate {
 }
 
 impl crate::redeem_code::Config for Test {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
 
     type WeightInfo = ();
 
@@ -306,7 +306,7 @@ impl pallet_balances::Config for Test {
     /// The type for recording an account's balance.
     type Balance = Balance;
     /// The ubiquitous event type.
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type DustRemoval = ();
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;

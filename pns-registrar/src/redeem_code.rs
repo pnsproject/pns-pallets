@@ -40,7 +40,7 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         type WeightInfo: WeightInfo;
 
@@ -79,7 +79,7 @@ pub mod pallet {
             + core::fmt::Debug
             + TypeInfo;
 
-        type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
+        type ManagerOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
 
         type Official: Official<AccountId = Self::AccountId>;
     }
@@ -300,22 +300,22 @@ pub trait WeightInfo {
 
 impl WeightInfo for () {
     fn mint_redeem(_len: u32) -> Weight {
-        0
+        Weight::zero()
     }
 
     fn create_label(_len: u32) -> Weight {
-        0
+        Weight::zero()
     }
 
     fn for_redeem_code(_len: u32) -> Weight {
-        0
+        Weight::zero()
     }
 
     fn name_redeem_min() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn name_redeem_any_min() -> Weight {
-        0
+        Weight::zero()
     }
 }

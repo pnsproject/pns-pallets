@@ -41,7 +41,7 @@ use frame_support::{ensure, pallet_prelude::*, traits::Get, BoundedVec, Paramete
 use scale_info::TypeInfo;
 use sp_runtime::{
     traits::{
-        AtLeast32BitUnsigned, CheckedAdd, CheckedSub, MaybeSerializeDeserialize, Member, One, Zero,
+        AtLeast32BitUnsigned, CheckedAdd, CheckedSub, MaybeSerializeDeserialize, Member, One,
     },
     ArithmeticError, DispatchError, DispatchResult, RuntimeDebug,
 };
@@ -332,21 +332,24 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    /// Destroy NFT(non fungible token) class
-    pub fn destroy_class(owner: &T::AccountId, class_id: T::ClassId) -> DispatchResult {
-        Classes::<T>::try_mutate_exists(class_id, |class_info| -> DispatchResult {
-            let info = class_info.take().ok_or(Error::<T>::ClassNotFound)?;
-            ensure!(info.owner == *owner, Error::<T>::NoPermission);
-            ensure!(
-                info.total_issuance == Zero::zero(),
-                Error::<T>::CannotDestroyClass
-            );
+    // /// Destroy NFT(non fungible token) class
+    // pub fn destroy_class(owner: &T::AccountId, class_id: T::ClassId) -> DispatchResult {
+    //     Classes::<T>::try_mutate_exists(class_id, |class_info| -> DispatchResult {
+    //         let info = class_info.take().ok_or(Error::<T>::ClassNotFound)?;
+    //         ensure!(info.owner == *owner, Error::<T>::NoPermission);
+    //         ensure!(
+    //             info.total_issuance == Zero::zero(),
+    //             Error::<T>::CannotDestroyClass
+    //         );
 
-            Tokens::<T>::remove_prefix(class_id, None);
+    //         Tokens::<T>::remove_prefix(class_id, None);
 
-            Ok(())
-        })
-    }
+    //         let res = Tokens::<T>::clear_prefix(class_id,u32::MAX,None);
+                
+
+    //         Ok(())
+    //     })
+    // }
 
     pub fn is_owner(account: &T::AccountId, token: (T::ClassId, T::TokenId)) -> bool {
         TokensByOwner::<T>::contains_key((account, token.0, token.1))

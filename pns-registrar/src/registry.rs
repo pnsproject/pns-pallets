@@ -43,7 +43,7 @@ pub mod pallet {
             TokenId = <Self as frame_system::Config>::Hash,
         >
     {
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         type WeightInfo: WeightInfo;
 
@@ -60,7 +60,7 @@ pub mod pallet {
             + TypeInfo
             + MaxEncodedLen;
 
-        type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
+        type ManagerOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -86,7 +86,7 @@ pub mod pallet {
 
     /// `name_hash` -> (`origin`,`parent`) or `origin`
     #[pallet::storage]
-    pub type Origin<T: Config> = StorageMap<_, Twox64Concat, T::Hash, DomainTracing<T::Hash>>;
+    pub type RuntimeOrigin<T: Config> = StorageMap<_, Twox64Concat, T::Hash, DomainTracing<T::Hash>>;
     /// `name_hash` -> `resolver_id`
     #[pallet::storage]
     pub type Resolver<T: Config> = StorageMap<_, Twox64Concat, T::Hash, T::ResolverId, ValueQuery>;
@@ -107,7 +107,7 @@ pub mod pallet {
         MaxEncodedLen,
     )]
     pub enum DomainTracing<Hash> {
-        Origin(Hash),
+        RuntimeOrigin(Hash),
         Root,
     }
     /// (`owner`,`account`) if `account` is `operater` -> ()
@@ -144,7 +144,7 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             for (node, origin) in self.origin.iter() {
-                Origin::<T>::insert(node, origin);
+                RuntimeOrigin::<T>::insert(node, origin);
             }
             if let Some(official) = &self.official {
                 Official::<T>::put(official);
@@ -257,9 +257,9 @@ pub mod pallet {
 
                 Self::verify_with_owner(&caller, token, &token_owner)?;
 
-                if let Some(origin) = Origin::<T>::get(token) {
+                if let Some(origin) = RuntimeOrigin::<T>::get(token) {
                     match origin {
-                        DomainTracing::Origin(origin) => Self::sub_children(origin, class_id)?,
+                        DomainTracing::RuntimeOrigin(origin) => Self::sub_children(origin, class_id)?,
                         DomainTracing::Root => {
                             T::Registrar::clear_registrar_info(token, &token_owner)?;
                         }
@@ -324,27 +324,27 @@ pub mod pallet {
                         Default::default(),
                     )?;
 
-                    if let Some(origin) = Origin::<T>::get(node) {
+                    if let Some(origin) = RuntimeOrigin::<T>::get(node) {
                         match origin {
-                            DomainTracing::Origin(origin) => {
+                            DomainTracing::RuntimeOrigin(origin) => {
                                 T::Registrar::check_expires_useable(origin)?;
 
                                 Self::add_children_with_check(origin, class_id, capacity)?;
 
                                 Self::add_children(node, class_id)?;
 
-                                Origin::<T>::insert(label_node, DomainTracing::Origin(origin));
+                                RuntimeOrigin::<T>::insert(label_node, DomainTracing::RuntimeOrigin(origin));
                             }
                             DomainTracing::Root => {
                                 Self::add_children_with_check(node, class_id, capacity)?;
 
-                                Origin::<T>::insert(label_node, DomainTracing::Origin(node));
+                                RuntimeOrigin::<T>::insert(label_node, DomainTracing::RuntimeOrigin(node));
                             }
                         }
                     } else {
                         Self::add_children(node, class_id)?;
 
-                        Origin::<T>::insert(label_node, DomainTracing::Root);
+                        RuntimeOrigin::<T>::insert(label_node, DomainTracing::Root);
                     }
                 }
                 Self::deposit_event(Event::<T>::TokenMinted {
@@ -404,9 +404,9 @@ pub mod pallet {
 
             Self::verify_with_owner(from, token, &owner)?;
 
-            if let Some(origin) = Origin::<T>::get(token) {
+            if let Some(origin) = RuntimeOrigin::<T>::get(token) {
                 match origin {
-                    DomainTracing::Origin(origin) => {
+                    DomainTracing::RuntimeOrigin(origin) => {
                         T::Registrar::check_expires_renewable(origin)?;
                     }
                     DomainTracing::Root => {
@@ -675,30 +675,30 @@ impl<T: Config> crate::traits::Official for pallet::Pallet<T> {
 
 impl WeightInfo for () {
     fn approval_for_all_true() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn approval_for_all_false() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn set_resolver() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn burn() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn set_official() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn approve_true() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn approve_false() -> Weight {
-        0
+        Weight::zero()
     }
 }

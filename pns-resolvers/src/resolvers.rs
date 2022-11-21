@@ -8,6 +8,7 @@ This module provides functionality for domain name resolution. Most of these int
 !*/
 
 use codec::MaxEncodedLen;
+
 pub use pallet::*;
 
 #[frame_support::pallet]
@@ -27,7 +28,7 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         type WeightInfo: WeightInfo;
 
@@ -259,10 +260,10 @@ impl From<Vec<u8>> for Content {
 
 impl WeightInfo for () {
     fn set_text(_content_len: u32) -> Weight {
-        0
+        Weight::zero()
     }
 
     fn set_account() -> Weight {
-        0
+        Weight::zero()
     }
 }

@@ -67,7 +67,7 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         type ResolverId: Clone + Decode + Encode + Eq + PartialEq + core::fmt::Debug + Default;
 
@@ -110,7 +110,7 @@ pub mod pallet {
 
         type PriceOracle: PriceOracle<Duration = Self::Moment, Balance = BalanceOf<Self>>;
 
-        type ManagerOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
+        type ManagerOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
 
         type IsOpen: IsRegistrarOpen;
 
@@ -681,26 +681,26 @@ impl<T: Config> IntoMoment<T> for core::time::Duration {
 
 impl WeightInfo for () {
     fn mint_subname(_len: u32) -> Weight {
-        0
+        Weight::zero()
     }
 
     fn register(_len: u32) -> Weight {
-        0
+        Weight::zero()
     }
 
     fn renew(_len: u32) -> Weight {
-        0
+        Weight::zero()
     }
 
     fn transfer() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn add_reserved() -> Weight {
-        0
+        Weight::zero()
     }
 
     fn remove_reserved() -> Weight {
-        0
+        Weight::zero()
     }
 }

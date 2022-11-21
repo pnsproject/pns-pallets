@@ -1,5 +1,5 @@
 [package]
-authors = [ 'Cupnfish' ]
+authors = ['Cupnfish']
 description = 'Ens code is rewritten using substrate.'
 edition = '2021'
 homepage = 'https://app.pns.link/'
@@ -10,96 +10,81 @@ repository = 'https://github.com/substrate-developer-hub/substrate-node-template
 version = "0.1.0"
 
 [package.metadata.docs.rs]
-targets = [ 'x86_64-unknown-linux-gnu' ]
+targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies.serde]
 default-features = false
-version = '1.0'
-features = [ "derive" ]
+workspace = true
+features = ["derive"]
 
 [dependencies.sp-core]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.18"
-
+workspace = true
 
 [dependencies.sp-io]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.18"
-
+workspace = true
 
 [dependencies.sp-std]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.18"
+workspace = true
 
 
 [dependencies.sp-runtime]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.18"
+workspace = true
 
 [dependencies.sp-api]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.18"
+workspace = true
 
 
 [dependencies.codec]
-package = "parity-scale-codec"
-version = "3.0"
+workspace = true
 default-features = false
-features = [ "derive", "max-encoded-len" ]
+features = ["derive", "max-encoded-len"]
+package = "parity-scale-codec"
 
 [dependencies.frame-benchmarking]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
+workspace = true
 optional = true
-branch = "polkadot-v0.9.18"
 
 
 [dependencies.frame-support]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.18"
-
+workspace = true
 
 [dependencies.frame-system]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.18"
+workspace = true
 
 
 [dependencies.scale-info]
-version = "2.0"
+workspace = true
 default-features = false
-features = [ "derive" ]
+features = ["derive"]
 
 [dependencies.pallet-balances]
-git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.18"
+workspace = true
 default-features = false
 
 
-[dev-dependencies.pallet-timestamp]
-git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.18"
-
-[dev-dependencies.pallet-aura]
-git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.18"
-
-[dev-dependencies.sp-consensus-aura]
-git = 'https://github.com/paritytech/substrate.git'
-branch = "polkadot-v0.9.18"
+[dev-dependencies]
+sp-consensus-aura.workspace = true
+pallet-aura.workspace = true
+pallet-timestamp.workspace = true
 
 [dev-dependencies.pns-resolvers]
 path = "../pns-resolvers"
 
 [features]
-default = [ 'std' ]
-runtime-benchmarks = [ 'frame-benchmarking/runtime-benchmarks', 'frame-support/runtime-benchmarks', 'frame-system/runtime-benchmarks' ]
+default = ['std']
+runtime-benchmarks = [
+    'frame-benchmarking/runtime-benchmarks',
+    'frame-support/runtime-benchmarks',
+    'frame-system/runtime-benchmarks',
+]
 std = [
     'codec/std',
     'frame-support/std',
@@ -114,4 +99,4 @@ std = [
     'serde/std',
     'pallet-balances/std',
 ]
-try-runtime = [ 'frame-support/try-runtime' ]
+try-runtime = ['frame-support/try-runtime']

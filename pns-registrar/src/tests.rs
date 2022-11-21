@@ -15,7 +15,7 @@ fn register_test() {
         let name = "中文测试".as_bytes();
         assert_noop!(
             Registrar::register(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 name.to_vec(),
                 RICH_ACCOUNT,
                 MinRegistrationDuration::get()
@@ -26,7 +26,7 @@ fn register_test() {
         // lable lenth too short
         assert_noop!(
             Registrar::register(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 b"hello".to_vec(),
                 RICH_ACCOUNT,
                 MinRegistrationDuration::get()
@@ -41,7 +41,7 @@ fn register_test() {
         // Minimal registration duration test
         assert_noop!(
             Registrar::register(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 name.to_vec(),
                 RICH_ACCOUNT,
                 MinRegistrationDuration::get() - DAYS
@@ -55,7 +55,7 @@ fn register_test() {
         let init_free = Balances::free_balance(RICH_ACCOUNT);
         // a right call
         assert_ok!(Registrar::register(
-            Origin::signed(RICH_ACCOUNT),
+            RuntimeOrigin::signed(RICH_ACCOUNT),
             name.to_vec(),
             RICH_ACCOUNT,
             MinRegistrationDuration::get()
@@ -78,7 +78,7 @@ fn register_test() {
         let node2 = label2.encode_with_node(&DOT_BASENODE);
 
         assert_ok!(Registry::approve(
-            Origin::signed(RICH_ACCOUNT),
+            RuntimeOrigin::signed(RICH_ACCOUNT),
             9944,
             node,
             true
@@ -92,7 +92,7 @@ fn register_test() {
 
         assert_noop!(
             Registrar::register(
-                Origin::signed(MONEY_ACCOUNT),
+                RuntimeOrigin::signed(MONEY_ACCOUNT),
                 name.to_vec(),
                 MONEY_ACCOUNT,
                 MinRegistrationDuration::get()
@@ -102,7 +102,7 @@ fn register_test() {
 
         assert_noop!(
             Registrar::register(
-                Origin::signed(POOR_ACCOUNT),
+                RuntimeOrigin::signed(POOR_ACCOUNT),
                 name2.to_vec(),
                 POOR_ACCOUNT,
                 MinRegistrationDuration::get()
@@ -112,11 +112,11 @@ fn register_test() {
         let price_free =
             PriceOracle::register_fee(name2.len(), MinRegistrationDuration::get()).unwrap();
 
-        Balances::set_balance(Origin::root(), POOR_ACCOUNT, price_free, 0).unwrap();
+        Balances::set_balance(RuntimeOrigin::root(), POOR_ACCOUNT, price_free, 0).unwrap();
 
         assert_noop!(
             Registrar::register(
-                Origin::signed(POOR_ACCOUNT),
+                RuntimeOrigin::signed(POOR_ACCOUNT),
                 name2.to_vec(),
                 POOR_ACCOUNT,
                 MinRegistrationDuration::get()
@@ -124,10 +124,10 @@ fn register_test() {
             pallet_balances::Error::<Test>::InsufficientBalance
         );
 
-        Balances::set_balance(Origin::root(), POOR_ACCOUNT, price_free * 2, 0).unwrap();
+        Balances::set_balance(RuntimeOrigin::root(), POOR_ACCOUNT, price_free * 2, 0).unwrap();
 
         assert_ok!(Registrar::register(
-            Origin::signed(POOR_ACCOUNT),
+            RuntimeOrigin::signed(POOR_ACCOUNT),
             name2.to_vec(),
             POOR_ACCOUNT,
             MinRegistrationDuration::get()
@@ -135,7 +135,7 @@ fn register_test() {
 
         let renew_duration = 50 * DAYS;
         assert_ok!(Registrar::renew(
-            Origin::signed(RICH_ACCOUNT),
+            RuntimeOrigin::signed(RICH_ACCOUNT),
             name.to_vec(),
             renew_duration
         ));
@@ -144,14 +144,14 @@ fn register_test() {
         let info = registrar::RegistrarInfos::<Test>::get(node).unwrap();
 
         assert_noop!(
-            Registrar::transfer(Origin::signed(MONEY_ACCOUNT), RICH_ACCOUNT, node),
+            Registrar::transfer(RuntimeOrigin::signed(MONEY_ACCOUNT), RICH_ACCOUNT, node),
             registry::Error::<Test>::NoPermission
         );
 
         assert_eq!(info.expire, old_expire + renew_duration);
 
         assert_ok!(Registrar::renew(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             name.to_vec(),
             renew_duration
         ));
@@ -164,7 +164,7 @@ fn register_test() {
         assert!(Nft::is_owner(&RICH_ACCOUNT, (0, node)));
 
         assert_ok!(Registrar::transfer(
-            Origin::signed(RICH_ACCOUNT),
+            RuntimeOrigin::signed(RICH_ACCOUNT),
             MONEY_ACCOUNT,
             node
         ));
@@ -172,7 +172,7 @@ fn register_test() {
         assert!(Nft::is_owner(&MONEY_ACCOUNT, (0, node)));
 
         assert_ok!(Registrar::transfer(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             RICH_ACCOUNT,
             node
         ));
@@ -180,7 +180,7 @@ fn register_test() {
         assert!(Nft::is_owner(&RICH_ACCOUNT, (0, node)));
 
         assert_ok!(Registrar::mint_subname(
-            Origin::signed(RICH_ACCOUNT),
+            RuntimeOrigin::signed(RICH_ACCOUNT),
             node,
             b"test".to_vec(),
             MONEY_ACCOUNT
@@ -188,7 +188,7 @@ fn register_test() {
 
         assert_noop!(
             Registrar::mint_subname(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 node,
                 b"test".to_vec(),
                 MONEY_ACCOUNT
@@ -197,7 +197,7 @@ fn register_test() {
         );
 
         assert_ok!(Registrar::mint_subname(
-            Origin::signed(RICH_ACCOUNT),
+            RuntimeOrigin::signed(RICH_ACCOUNT),
             node,
             b"test1".to_vec(),
             MONEY_ACCOUNT
@@ -206,7 +206,7 @@ fn register_test() {
         assert!(Nft::is_owner(&POOR_ACCOUNT, (0, node2)));
 
         assert_ok!(Registrar::mint_subname(
-            Origin::signed(POOR_ACCOUNT),
+            RuntimeOrigin::signed(POOR_ACCOUNT),
             node2,
             b"test1".to_vec(),
             MONEY_ACCOUNT
@@ -214,7 +214,7 @@ fn register_test() {
 
         assert_noop!(
             Registrar::mint_subname(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 node2,
                 b"test2".to_vec(),
                 MONEY_ACCOUNT
@@ -233,7 +233,7 @@ fn register_test() {
 fn redeem_code_test() {
     new_test_ext().execute_with(|| {
         assert_ok!(RedeemCode::mint_redeem(
-            Origin::signed(MANAGER_ACCOUNT),
+            RuntimeOrigin::signed(MANAGER_ACCOUNT),
             0,
             10
         ));
@@ -249,7 +249,7 @@ fn redeem_code_test() {
 
         assert_noop!(
             RedeemCode::name_redeem(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 b"cupnfish".to_vec(),
                 MinRegistrationDuration::get(),
                 0,
@@ -261,7 +261,7 @@ fn redeem_code_test() {
 
         assert_noop!(
             RedeemCode::name_redeem(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 b"cupnfishxxx".to_vec(),
                 MinRegistrationDuration::get(),
                 0,
@@ -273,7 +273,7 @@ fn redeem_code_test() {
 
         assert_noop!(
             RedeemCode::name_redeem(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 b"cupn---fish".to_vec(),
                 MinRegistrationDuration::get(),
                 0,
@@ -284,7 +284,7 @@ fn redeem_code_test() {
         );
 
         assert_ok!(RedeemCode::name_redeem(
-            Origin::signed(RICH_ACCOUNT),
+            RuntimeOrigin::signed(RICH_ACCOUNT),
             b"cupnfish".to_vec(),
             MinRegistrationDuration::get(),
             0,
@@ -298,7 +298,7 @@ fn redeem_code_test() {
 
         assert_noop!(
             RedeemCode::name_redeem(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 b"cupnfish".to_vec(),
                 MinRegistrationDuration::get(),
                 0,
@@ -315,7 +315,7 @@ fn redeem_code_test() {
 
         assert_noop!(
             RedeemCode::name_redeem_any(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 b"cupnfish".to_vec(),
                 MinRegistrationDuration::get(),
                 0,
@@ -327,7 +327,7 @@ fn redeem_code_test() {
 
         assert_noop!(
             RedeemCode::name_redeem_any(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 b"cup-nfi--sh".to_vec(),
                 MinRegistrationDuration::get(),
                 1,
@@ -339,7 +339,7 @@ fn redeem_code_test() {
 
         assert_noop!(
             RedeemCode::name_redeem_any(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 b"cupnfish".to_vec(),
                 MinRegistrationDuration::get(),
                 1,
@@ -350,7 +350,7 @@ fn redeem_code_test() {
         );
 
         assert_ok!(Registrar::register(
-            Origin::signed(RICH_ACCOUNT),
+            RuntimeOrigin::signed(RICH_ACCOUNT),
             b"cupnfishqqq".to_vec(),
             POOR_ACCOUNT,
             MinRegistrationDuration::get()
@@ -358,7 +358,7 @@ fn redeem_code_test() {
 
         assert_noop!(
             RedeemCode::name_redeem_any(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 b"cupnfishqqq".to_vec(),
                 MinRegistrationDuration::get(),
                 1,
@@ -369,7 +369,7 @@ fn redeem_code_test() {
         );
 
         assert_ok!(RedeemCode::name_redeem_any(
-            Origin::signed(RICH_ACCOUNT),
+            RuntimeOrigin::signed(RICH_ACCOUNT),
             b"cupnfishxxx".to_vec(),
             MinRegistrationDuration::get(),
             1,
@@ -390,7 +390,7 @@ fn redeem_code_test() {
 fn resolvers_test() {
     new_test_ext().execute_with(|| {
         assert_ok!(Registrar::register(
-            Origin::signed(RICH_ACCOUNT),
+            RuntimeOrigin::signed(RICH_ACCOUNT),
             b"cupnfishxxx".to_vec(),
             MONEY_ACCOUNT,
             MinRegistrationDuration::get()
@@ -402,66 +402,66 @@ fn resolvers_test() {
             .encode_with_node(&DOT_BASENODE);
 
         assert_ok!(Resolvers::set_account(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             node,
             Address::Id(POOR_ACCOUNT),
         ));
         assert_ok!(Resolvers::set_account(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             node,
             Address::Ethereum([4; 20]),
         ));
         assert_ok!(Resolvers::set_text(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Email,
             b"cupnfish@qq.com".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Url,
             b"www.baidu.com".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Avatar,
             b"cupnfish".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Description,
             b"A Rust programer.".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Notice,
             b"test notice".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Keywords,
             b"test,key,words,show".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Twitter,
             b"twitter address".to_vec().into(),
         ));
         assert_ok!(Resolvers::set_text(
-            Origin::signed(MONEY_ACCOUNT),
+            RuntimeOrigin::signed(MONEY_ACCOUNT),
             node,
             TextKind::Github,
             b"github homepage".to_vec().into(),
         ));
         assert_noop!(
             Resolvers::set_account(
-                Origin::signed(RICH_ACCOUNT),
+                RuntimeOrigin::signed(RICH_ACCOUNT),
                 node,
                 Address::Id(POOR_ACCOUNT),
             ),
