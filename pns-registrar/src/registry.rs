@@ -86,7 +86,8 @@ pub mod pallet {
 
     /// `name_hash` -> (`origin`,`parent`) or `origin`
     #[pallet::storage]
-    pub type RuntimeOrigin<T: Config> = StorageMap<_, Twox64Concat, T::Hash, DomainTracing<T::Hash>>;
+    pub type RuntimeOrigin<T: Config> =
+        StorageMap<_, Twox64Concat, T::Hash, DomainTracing<T::Hash>>;
     /// `name_hash` -> `resolver_id`
     #[pallet::storage]
     pub type Resolver<T: Config> = StorageMap<_, Twox64Concat, T::Hash, T::ResolverId, ValueQuery>;
@@ -259,7 +260,9 @@ pub mod pallet {
 
                 if let Some(origin) = RuntimeOrigin::<T>::get(token) {
                     match origin {
-                        DomainTracing::RuntimeOrigin(origin) => Self::sub_children(origin, class_id)?,
+                        DomainTracing::RuntimeOrigin(origin) => {
+                            Self::sub_children(origin, class_id)?
+                        }
                         DomainTracing::Root => {
                             T::Registrar::clear_registrar_info(token, &token_owner)?;
                         }
@@ -333,12 +336,18 @@ pub mod pallet {
 
                                 Self::add_children(node, class_id)?;
 
-                                RuntimeOrigin::<T>::insert(label_node, DomainTracing::RuntimeOrigin(origin));
+                                RuntimeOrigin::<T>::insert(
+                                    label_node,
+                                    DomainTracing::RuntimeOrigin(origin),
+                                );
                             }
                             DomainTracing::Root => {
                                 Self::add_children_with_check(node, class_id, capacity)?;
 
-                                RuntimeOrigin::<T>::insert(label_node, DomainTracing::RuntimeOrigin(node));
+                                RuntimeOrigin::<T>::insert(
+                                    label_node,
+                                    DomainTracing::RuntimeOrigin(node),
+                                );
                             }
                         }
                     } else {
@@ -493,7 +502,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
             Self::verify(&caller, node)?;
-            Resolver::<T>::mutate(&node, |rs| *rs = resolver.clone());
+            Resolver::<T>::mutate(node, |rs| *rs = resolver.clone());
 
             Self::deposit_event(Event::<T>::NewResolver { node, resolver });
             Ok(())

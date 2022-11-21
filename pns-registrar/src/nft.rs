@@ -345,7 +345,6 @@ impl<T: Config> Pallet<T> {
     //         Tokens::<T>::remove_prefix(class_id, None);
 
     //         let res = Tokens::<T>::clear_prefix(class_id,u32::MAX,None);
-                
 
     //         Ok(())
     //     })

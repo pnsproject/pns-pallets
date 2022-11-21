@@ -252,7 +252,7 @@ pub mod pallet {
         pub fn add_reserved(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
-            ReservedList::<T>::insert(&node, ());
+            ReservedList::<T>::insert(node, ());
 
             Self::deposit_event(Event::<T>::NameReserved { node });
             Ok(())
@@ -263,7 +263,7 @@ pub mod pallet {
         pub fn remove_reserved(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
-            ReservedList::<T>::remove(&node);
+            ReservedList::<T>::remove(node);
 
             Self::deposit_event(Event::<T>::NameUnReserved { node });
             Ok(())
@@ -317,7 +317,7 @@ pub mod pallet {
             let label_node = label.encode_with_node(&base_node);
 
             ensure!(
-                !ReservedList::<T>::contains_key(&label_node),
+                !ReservedList::<T>::contains_key(label_node),
                 Error::<T>::Frozen
             );
 

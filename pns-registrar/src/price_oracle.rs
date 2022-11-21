@@ -104,10 +104,10 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <BasePrice<T>>::put(&self.base_prices);
-            <RentPrice<T>>::put(&self.rent_prices);
-            <DepositPrice<T>>::put(&self.deposit_prices);
-            <ExchangeRate<T>>::put(&self.init_rate);
+            <BasePrice<T>>::put(self.base_prices);
+            <RentPrice<T>>::put(self.rent_prices);
+            <DepositPrice<T>>::put(self.deposit_prices);
+            <ExchangeRate<T>>::put(self.init_rate);
         }
     }
 
@@ -140,7 +140,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = T::ManagerOrigin::ensure_origin(origin)?;
 
-            <ExchangeRate<T>>::put(&exchange_rate);
+            <ExchangeRate<T>>::put(exchange_rate);
 
             Self::deposit_event(Event::ExchangeRateChanged(who, exchange_rate));
 
@@ -151,7 +151,7 @@ pub mod pallet {
         pub fn set_base_price(origin: OriginFor<T>, prices: [BalanceOf<T>; 11]) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
-            <BasePrice<T>>::put(&prices);
+            <BasePrice<T>>::put(prices);
 
             Self::deposit_event(Event::BasePriceChanged(prices));
 
@@ -162,7 +162,7 @@ pub mod pallet {
         pub fn set_rent_price(origin: OriginFor<T>, prices: [BalanceOf<T>; 11]) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
-            <RentPrice<T>>::put(&prices);
+            <RentPrice<T>>::put(prices);
 
             Self::deposit_event(Event::RentPriceChanged(prices));
 
@@ -176,7 +176,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
-            <DepositPrice<T>>::put(&prices);
+            <DepositPrice<T>>::put(prices);
 
             Self::deposit_event(Event::DepositPriceChanged(prices));
 
