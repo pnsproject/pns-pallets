@@ -1,4 +1,4 @@
-//! # PNS RuntimeOrigin
+//! # PNS `Origin`
 //!
 //! This module is responsible for providing administrator account
 //! authentication for `pns-pallets`. Considering that `pns-pallets`
