@@ -196,7 +196,7 @@ pub trait WeightInfo {
 }
 
 impl<T: Config> PriceOracle for Pallet<T> {
-    type Duration = T::Moment;
+    type Moment = T::Moment;
 
     type Balance = BalanceOf<T>;
 
@@ -225,13 +225,13 @@ impl<T: Config> PriceOracle for Pallet<T> {
         base_prices[len - 1].checked_mul(&exchange_rate)
     }
 
-    fn register_fee(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
+    fn register_fee(name_len: usize, duration: Self::Moment) -> Option<Self::Balance> {
         let register_price = Self::registration_fee(name_len)?;
         let rent_price = Self::renew_fee(name_len, duration)?;
 
         Some(register_price + rent_price)
     }
-    fn renew_fee(name_len: usize, duration: Self::Duration) -> Option<Self::Balance> {
+    fn renew_fee(name_len: usize, duration: Self::Moment) -> Option<Self::Balance> {
         let rent_prices = RentPrice::<T>::get();
         let prices_len = rent_prices.len();
         let len = if name_len < prices_len {

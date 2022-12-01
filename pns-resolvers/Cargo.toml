@@ -68,6 +68,11 @@ default-features = false
 features = ["runtime-benchmarks"]
 optional = true
 
+[dependencies.pns-types]
+path = "../pns-types"
+default-features = false
+
+
 [features]
 default = ['std']
 runtime-benchmarks = [
@@ -86,5 +91,6 @@ std = [
     'sp-std/std',
     'sp-core/std',
     'scale-info/std',
+    'pns-types/std'
 ]
 try-runtime = ['frame-support/try-runtime']

@@ -1,4 +1,5 @@
 use frame_support::parameter_types;
+use pns_types::DomainHash;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::H256;
 use sp_runtime::{
@@ -52,8 +53,6 @@ impl pns_resolvers::resolvers::Config for Test {
     type AccountIndex = u32;
 
     type RegistryChecker = TestChecker;
-
-    type DomainHash = Hash;
 }
 
 impl crate::origin::Config for Test {
@@ -65,11 +64,9 @@ impl crate::origin::Config for Test {
 pub struct TestChecker;
 
 impl pns_resolvers::resolvers::RegistryChecker for TestChecker {
-    type Hash = Hash;
-
     type AccountId = AccountId;
 
-    fn check_node_useable(node: Self::Hash, owner: &Self::AccountId) -> bool {
+    fn check_node_useable(node: DomainHash, owner: &Self::AccountId) -> bool {
         use crate::traits::Registrar as _;
         crate::nft::TokensByOwner::<Test>::contains_key((owner, 0, node))
             && Registrar::check_expires_useable(node).is_ok()
@@ -192,7 +189,7 @@ impl crate::nft::Config for Test {
 
     type ClassData = ();
 
-    type TokenData = crate::registry::Record;
+    type TokenData = pns_types::Record;
 
     type MaxClassMetadata = MaxMetadata;
 

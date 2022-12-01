@@ -26,39 +26,24 @@ use sp_std::vec::Vec;
 pub mod pallet {
     use super::*;
     use crate::{nft, traits::Registrar};
-    use codec::FullCodec;
     use frame_support::pallet_prelude::*;
     use frame_support::traits::EnsureOrigin;
     use frame_system::{ensure_signed, pallet_prelude::*};
-    use scale_info::TypeInfo;
-    use serde::{Deserialize, Serialize};
+    use pns_types::{DomainHash, DomainTracing, Record};
     use sp_runtime::traits::{StaticLookup, Zero};
 
     #[pallet::config]
     pub trait Config:
         frame_system::Config
-        + crate::nft::Config<
-            ClassData = (),
-            TokenData = Record,
-            TokenId = <Self as frame_system::Config>::Hash,
-        >
+        + crate::nft::Config<ClassData = (), TokenData = Record, TokenId = DomainHash>
     {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         type WeightInfo: WeightInfo;
 
-        type Registrar: Registrar<Hash = Self::Hash, AccountId = Self::AccountId>;
+        type Registrar: Registrar<AccountId = Self::AccountId>;
 
-        type ResolverId: Encode
-            + Decode
-            + PartialEq
-            + Eq
-            + core::fmt::Debug
-            + Clone
-            + Default
-            + FullCodec
-            + TypeInfo
-            + MaxEncodedLen;
+        type ResolverId: Parameter + Default + MaxEncodedLen;
 
         type ManagerOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
     }
@@ -67,50 +52,17 @@ pub mod pallet {
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
-    /// 域名记录
-    #[derive(
-        Encode,
-        Decode,
-        PartialEq,
-        Eq,
-        RuntimeDebug,
-        Clone,
-        Default,
-        TypeInfo,
-        Serialize,
-        Deserialize,
-    )]
-    pub struct Record {
-        pub children: u32,
-    }
-
     /// `name_hash` -> (`origin`,`parent`) or `origin`
     #[pallet::storage]
-    pub type RuntimeOrigin<T: Config> =
-        StorageMap<_, Twox64Concat, T::Hash, DomainTracing<T::Hash>>;
+    pub type RuntimeOrigin<T: Config> = StorageMap<_, Twox64Concat, DomainHash, DomainTracing>;
     /// `name_hash` -> `resolver_id`
     #[pallet::storage]
-    pub type Resolver<T: Config> = StorageMap<_, Twox64Concat, T::Hash, T::ResolverId, ValueQuery>;
+    pub type Resolver<T: Config> =
+        StorageMap<_, Twox64Concat, DomainHash, T::ResolverId, ValueQuery>;
     /// `official`
     #[pallet::storage]
     pub type Official<T: Config> = StorageValue<_, T::AccountId>;
 
-    #[derive(
-        Encode,
-        Decode,
-        PartialEq,
-        Eq,
-        RuntimeDebug,
-        Clone,
-        TypeInfo,
-        Serialize,
-        Deserialize,
-        MaxEncodedLen,
-    )]
-    pub enum DomainTracing<Hash> {
-        RuntimeOrigin(Hash),
-        Root,
-    }
     /// (`owner`,`account`) if `account` is `operater` -> ()
     #[pallet::storage]
     pub type OperatorApprovals<T: Config> =
@@ -119,14 +71,14 @@ pub mod pallet {
     /// (`node`,`account`) `node` -> `account`
     #[pallet::storage]
     pub type TokenApprovals<T: Config> =
-        StorageDoubleMap<_, Twox64Concat, T::Hash, Twox64Concat, T::AccountId, (), ValueQuery>;
+        StorageDoubleMap<_, Twox64Concat, DomainHash, Twox64Concat, T::AccountId, (), ValueQuery>;
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
-        pub origin: Vec<(T::Hash, DomainTracing<T::Hash>)>,
+        pub origin: Vec<(DomainHash, DomainTracing)>,
         pub official: Option<T::AccountId>,
         pub operators: Vec<(T::AccountId, T::AccountId)>,
-        pub token_approvals: Vec<(T::Hash, T::AccountId)>,
+        pub token_approvals: Vec<(DomainHash, T::AccountId)>,
     }
 
     #[cfg(feature = "std")]
@@ -164,7 +116,7 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Logged when the resolver for a node changes.
         NewResolver {
-            node: T::Hash,
+            node: DomainHash,
             resolver: T::ResolverId,
         },
         /// Logged when an operator is added or removed.
@@ -184,14 +136,14 @@ pub mod pallet {
         TokenMinted {
             class_id: T::ClassId,
             token_id: T::TokenId,
-            node: T::Hash,
+            node: DomainHash,
             owner: T::AccountId,
         },
         /// Logged when a node is burned.
         TokenBurned {
             class_id: T::ClassId,
             token_id: T::TokenId,
-            node: T::Hash,
+            node: DomainHash,
             owner: T::AccountId,
             caller: T::AccountId,
         },
@@ -223,7 +175,7 @@ pub mod pallet {
     // helper
     impl<T: Config> Pallet<T> {
         #[inline]
-        pub fn verify(caller: &T::AccountId, node: T::Hash) -> DispatchResult {
+        pub fn verify(caller: &T::AccountId, node: DomainHash) -> DispatchResult {
             let owner = &nft::Pallet::<T>::tokens(T::ClassId::zero(), node)
                 .ok_or(Error::<T>::NotExist)?
                 .owner;
@@ -236,7 +188,7 @@ pub mod pallet {
         #[inline]
         pub fn verify_with_owner(
             caller: &T::AccountId,
-            node: T::Hash,
+            node: DomainHash,
             owner: &T::AccountId,
         ) -> DispatchResult {
             ensure!(
@@ -293,8 +245,8 @@ pub mod pallet {
         pub(crate) fn mint_subname(
             owner: &T::AccountId,
             metadata: Vec<u8>,
-            node: T::Hash,
-            label_node: T::Hash,
+            node: DomainHash,
+            label_node: DomainHash,
             to: T::AccountId,
             capacity: u32,
             // `[maybe_pre_owner]`
@@ -368,7 +320,7 @@ pub mod pallet {
                 Err(Error::<T>::NotExist.into())
             }
         }
-        pub(crate) fn add_children(node: T::Hash, class_id: T::ClassId) -> DispatchResult {
+        pub(crate) fn add_children(node: DomainHash, class_id: T::ClassId) -> DispatchResult {
             nft::Tokens::<T>::mutate(class_id, node, |data| -> DispatchResult {
                 if let Some(info) = data {
                     let node_children = info.data.children;
@@ -380,7 +332,7 @@ pub mod pallet {
             })
         }
         fn add_children_with_check(
-            node: T::Hash,
+            node: DomainHash,
             class_id: T::ClassId,
             capacity: u32,
         ) -> DispatchResult {
@@ -438,7 +390,7 @@ pub mod pallet {
             Ok(())
         }
 
-        fn sub_children(node: T::Hash, class_id: T::ClassId) -> DispatchResult {
+        fn sub_children(node: DomainHash, class_id: T::ClassId) -> DispatchResult {
             nft::Tokens::<T>::mutate(class_id, node, |data| -> DispatchResult {
                 if let Some(info) = data {
                     let node_children = info.data.children;
@@ -497,7 +449,7 @@ pub mod pallet {
         #[pallet::weight(T::WeightInfo::set_resolver())]
         pub fn set_resolver(
             origin: OriginFor<T>,
-            node: T::Hash,
+            node: DomainHash,
             resolver: T::ResolverId,
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
@@ -515,7 +467,7 @@ pub mod pallet {
         ///
         /// Ensure: The number of subdomains for this domain must be zero.
         #[pallet::weight(T::WeightInfo::burn())]
-        pub fn burn(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
+        pub fn burn(origin: OriginFor<T>, node: DomainHash) -> DispatchResult {
             let caller = ensure_signed(origin)?;
 
             Self::do_burn(caller, node)?;
@@ -552,7 +504,7 @@ pub mod pallet {
         pub fn approve(
             origin: OriginFor<T>,
             to: T::AccountId,
-            node: T::Hash,
+            node: DomainHash,
             approved: bool,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
@@ -580,7 +532,7 @@ use frame_support::{
     dispatch::{DispatchResult, Weight},
     ensure,
 };
-
+use pns_types::DomainHash;
 pub trait WeightInfo {
     fn approval_for_all(approved: bool) -> Weight {
         if approved {
@@ -637,7 +589,6 @@ impl<T: pallet::Config> crate::traits::NFT<T::AccountId> for pallet::Pallet<T> {
 
 impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
     type AccountId = T::AccountId;
-    type Hash = T::Hash;
 
     #[cfg_attr(
         not(feature = "runtime-benchmarks"),
@@ -645,8 +596,8 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
     )]
     fn mint_subname(
         node_owner: &Self::AccountId,
-        node: Self::Hash,
-        label_node: Self::Hash,
+        node: DomainHash,
+        label_node: DomainHash,
         to: Self::AccountId,
         capacity: u32,
         do_payments: impl FnOnce(Option<&T::AccountId>) -> DispatchResult,
@@ -664,12 +615,12 @@ impl<T: pallet::Config> crate::traits::Registry for pallet::Pallet<T> {
     }
 
     /// 方便后续判断权限
-    fn available(caller: &Self::AccountId, node: Self::Hash) -> DispatchResult {
+    fn available(caller: &Self::AccountId, node: DomainHash) -> DispatchResult {
         pallet::Pallet::<T>::verify(caller, node)
     }
 
     #[frame_support::require_transactional]
-    fn transfer(from: &Self::AccountId, to: &Self::AccountId, node: Self::Hash) -> DispatchResult {
+    fn transfer(from: &Self::AccountId, to: &Self::AccountId, node: DomainHash) -> DispatchResult {
         Self::do_transfer(from, to, node)
     }
 }

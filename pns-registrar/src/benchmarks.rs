@@ -3,6 +3,7 @@
 
 use crate::traits::{LABEL_MAX_LEN, LABEL_MIN_LEN, MIN_REGISTRABLE_LEN};
 use frame_benchmarking::account;
+use pns_types::DomainHash;
 use sp_runtime::traits::StaticLookup;
 use sp_std::vec::Vec;
 
@@ -19,11 +20,8 @@ fn get_name(len: usize) -> sp_std::vec::Vec<u8> {
     res.into_bytes()
 }
 
-pub fn name_to_node<H>(name: Vec<u8>, basenode: H) -> H
-where
-    H: Default + AsMut<[u8]> + codec::Encode + Clone,
-{
-    let (label, _len) = crate::traits::Label::<H>::new(&name).unwrap();
+pub fn name_to_node(name: Vec<u8>, basenode: DomainHash) -> DomainHash {
+    let (label, _len) = crate::traits::Label::new(&name).unwrap();
     label.encode_with_node(&basenode)
 }
 
@@ -53,6 +51,7 @@ mod registry {
     use frame_benchmarking::Zero;
     use frame_benchmarking::{account, benchmarks};
     use frame_system::RawOrigin;
+    use pns_types::DomainHash;
     use sp_runtime::DispatchError;
 
     const SEED: u32 = 996;
@@ -60,9 +59,9 @@ mod registry {
     fn get_account_and_node<T: Config>(
         name: &'static str,
         index: u32,
-    ) -> Result<(T::AccountId, T::Hash), DispatchError> {
+    ) -> Result<(T::AccountId, DomainHash), DispatchError> {
         let owner = account::<T::AccountId>(name, index, SEED);
-        let label = Label::<T::Hash>::new(alloc::format!("{name}{index}").as_bytes())
+        let label = Label::new(alloc::format!("{name}{index}").as_bytes())
             .unwrap()
             .0;
         let class_id = T::ClassId::zero();
@@ -74,8 +73,8 @@ mod registry {
             Default::default(),
             Default::default(),
         )?;
-        use crate::registry::DomainTracing;
         use crate::registry::RuntimeOrigin;
+        use pns_types::DomainTracing;
         if RuntimeOrigin::<T>::get(T::Registrar::basenode()).is_some() {
             panic!("Unexpected arm");
         } else {
@@ -160,6 +159,7 @@ mod registrar {
     use frame_benchmarking::{account, benchmarks};
     use frame_support::traits::{Currency, Get};
     use frame_system::RawOrigin;
+    use pns_types::DomainHash;
     use sp_runtime::SaturatedConversion;
 
     pub fn create_caller<T>(idx: u32) -> T::AccountId
@@ -177,13 +177,13 @@ mod registrar {
         caller
     }
 
-    fn get_rand_node<T: Config>(seed: u32) -> T::Hash {
+    fn get_rand_node(seed: u32) -> DomainHash {
         let name = alloc::format!("rand{seed}");
-        let label = Label::<T::Hash>::new(name.as_bytes()).unwrap().0;
+        let label = Label::new(name.as_bytes()).unwrap().0;
         label.node
     }
 
-    fn get_subhash<T: Config>(subname: &[u8], node: T::Hash) -> T::Hash {
+    fn get_subhash(subname: &[u8], node: DomainHash) -> DomainHash {
         let (label, _len) = Label::new(subname).unwrap();
         label.encode_with_node(&node)
     }
@@ -194,14 +194,14 @@ mod registrar {
             T: crate::origin::Config + pallet_balances::Config,
         }
         add_reserved {
-            let node = get_rand_node::<T>(567);
+            let node = get_rand_node(567);
             let manager = get_manager::<T>();
         }:_(RawOrigin::Signed(manager), node)
         verify {
             assert!(crate::registrar::ReservedList::<T>::contains_key(node));
         }
         remove_reserved {
-            let node = get_rand_node::<T>(567);
+            let node = get_rand_node(567);
             let manager = get_manager::<T>();
 
             Pallet::<T>::add_reserved(RawOrigin::Signed(get_manager::<T>()).into(), node)?;
@@ -217,7 +217,7 @@ mod registrar {
             let source = account_to_source::<T>(rich_account.clone());
         }:_(RawOrigin::Signed(rich_account), name.clone(),source,T::MinRegistrationDuration::get())
         verify {
-            assert!(Pallet::<T>::check_expires_renewable(name_to_node::<T::Hash>(name,T::BaseNode::get())).is_ok());
+            assert!(Pallet::<T>::check_expires_renewable(name_to_node(name,T::BaseNode::get())).is_ok());
         }
 
         renew {
@@ -233,7 +233,7 @@ mod registrar {
 
         transfer {
             let name = get_name(MIN_REGISTRABLE_LEN);
-            let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get());
+            let hash = name_to_node(name.clone(),T::BaseNode::get());
             let rich_account = create_caller::<T>(8);
             let clone_rich = rich_account.clone();
             let to_account = create_caller::<T>(2);
@@ -244,12 +244,12 @@ mod registrar {
         mint_subname {
             let l in  U32_LABEL_MIN_LEN..U32_LABEL_MAX_LEN;
             let name = get_name(MIN_REGISTRABLE_LEN);
-            let hash = name_to_node::<T::Hash>(name.clone(),T::BaseNode::get());
+            let hash = name_to_node(name.clone(),T::BaseNode::get());
             let rich_account = create_caller::<T>(8);
             let clone_rich = rich_account.clone();
             Pallet::<T>::register(RawOrigin::Signed(clone_rich).into(), name,account_to_source::<T>(rich_account.clone()),T::MinRegistrationDuration::get())?;
             let subname = get_name(l as usize);
-            let subhash = get_subhash::<T>(&subname,hash);
+            let subhash = get_subhash(&subname,hash);
             let clone_rich = rich_account.clone();
         }:_(RawOrigin::Signed(clone_rich),hash,subname,account_to_source::<T>(rich_account))
 
@@ -285,7 +285,7 @@ mod redeem_code {
 
             crate::registry::Pallet::<T>::set_official(RawOrigin::Signed(get_manager::<T>()).into(),official)?;
             Pallet::<T>::mint_redeem(RawOrigin::Signed(get_manager::<T>()).into(),0,10)?;
-            let hash = name_to_node::<T::Hash>(name.clone(),<T as Config>::Registrar::basenode());
+            let hash = name_to_node(name.clone(),<T as Config>::Registrar::basenode());
             let poor_account7 = poor_account::<T>(7);
             let poor_account77 = poor_account::<T>(77);
         }:name_redeem(RawOrigin::Signed(poor_account7),name,duration,nouce,signature,poor_account77)
@@ -299,7 +299,7 @@ mod redeem_code {
 
             crate::registry::Pallet::<T>::set_official(RawOrigin::Signed(get_manager::<T>()).into(),official)?;
             Pallet::<T>::mint_redeem(RawOrigin::Signed(get_manager::<T>()).into(),0,10)?;
-            let hash = name_to_node::<T::Hash>(name.clone(),<T as Config>::Registrar::basenode());
+            let hash = name_to_node(name.clone(),<T as Config>::Registrar::basenode());
             let poor_account7 = poor_account::<T>(7);
             let poor_account77 = poor_account::<T>(77);
         }:name_redeem_any(RawOrigin::Signed(poor_account7),name,duration,nouce,signature,poor_account77)
@@ -312,7 +312,7 @@ mod redeem_code {
             }
             let data = name.into_bytes();
         }: {
-            crate::traits::Label::<T::Hash>::new(&data).unwrap();
+            crate::traits::Label::new(&data).unwrap();
         }
 
         for_redeem_code {
@@ -323,7 +323,7 @@ mod redeem_code {
             }
             let data = name.into_bytes();
             let (label, _) =
-            Label::<T::Hash>::new(&data).unwrap();
+            Label::new(&data).unwrap();
             let duration = <T as crate::redeem_code::pallet::Config>::Moment::from(24*60*60*365_u32);
             let poor_account7 = poor_account::<T>(7);
         }: {

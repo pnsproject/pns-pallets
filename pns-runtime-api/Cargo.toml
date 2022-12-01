@@ -1,0 +1,42 @@
+[package]
+name = "pns-runtime-api"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[dependencies.codec]
+workspace = true
+default-features = false
+package = "parity-scale-codec"
+features = ["derive", "max-encoded-len"]
+
+[dependencies.scale-info]
+workspace = true
+default-features = false
+features = ["derive"]
+
+[dependencies.serde]
+default-features = false
+workspace = true
+features = ["derive", "alloc"]
+
+[dependencies.sp-api]
+default-features = false
+workspace = true
+
+[dependencies.axum]
+workspace = true
+
+[dependencies.pns-types]
+path = "../pns-types"
+default-features = false
+
+[dependencies.sp-runtime]
+default-features = false
+workspace = true
+
+[features]
+default = ['std']
+std = ['codec/std', 'scale-info/std', 'serde/std', 'sp-api/std', 'pns-types/std','sp-runtime/std']

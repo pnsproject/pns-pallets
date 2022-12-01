@@ -7,7 +7,7 @@ This module provides functionality for domain name resolution. Most of these int
 - `set_text` - set text parsing, same requirements as above
 !*/
 
-use codec::MaxEncodedLen;
+use codec::{Encode, MaxEncodedLen};
 
 pub use pallet::*;
 
@@ -18,9 +18,7 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
-    use sp_runtime::traits::{
-        AtLeast32BitUnsigned, CheckEqual, MaybeDisplay, MaybeMallocSizeOf, SimpleBitOps,
-    };
+    use sp_runtime::traits::AtLeast32BitUnsigned;
     use sp_std::vec;
     use sp_std::vec::Vec;
 
@@ -34,23 +32,7 @@ pub mod pallet {
 
         type AccountIndex: Parameter + Member + AtLeast32BitUnsigned + Default + Copy;
 
-        type RegistryChecker: RegistryChecker<Hash = Self::DomainHash, AccountId = Self::AccountId>;
-
-        type DomainHash: Parameter
-            + Member
-            + MaybeSerializeDeserialize
-            + sp_std::fmt::Debug
-            + MaybeDisplay
-            + SimpleBitOps
-            + Ord
-            + Default
-            + Copy
-            + CheckEqual
-            + sp_std::hash::Hash
-            + AsRef<[u8]>
-            + AsMut<[u8]>
-            + MaybeMallocSizeOf
-            + MaxEncodedLen;
+        type RegistryChecker: RegistryChecker<AccountId = Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -77,8 +59,14 @@ pub mod pallet {
     }
     /// account_id mapping
     #[pallet::storage]
-    pub type Accounts<T: Config> =
-        StorageDoubleMap<_, Twox64Concat, T::DomainHash, Twox64Concat, Address<T::AccountId>, ()>;
+    pub type Accounts<T: Config> = StorageDoubleMap<
+        _,
+        Twox64Concat,
+        pns_types::DomainHash,
+        Twox64Concat,
+        Address<T::AccountId>,
+        (),
+    >;
     #[derive(
         Encode,
         Decode,
@@ -107,7 +95,7 @@ pub mod pallet {
     pub type Texts<T: Config> = StorageDoubleMap<
         _,
         Twox64Concat,
-        T::DomainHash,
+        pns_types::DomainHash,
         Twox64Concat,
         TextKind,
         Content,
@@ -117,9 +105,9 @@ pub mod pallet {
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         /// vec![ `node` , `address` ]
-        pub accounts: Vec<(T::DomainHash, Address<T::AccountId>)>,
+        pub accounts: Vec<(pns_types::DomainHash, Address<T::AccountId>)>,
         /// vec![ `node` , `text_kind` , `text` ]
-        pub texts: Vec<(T::DomainHash, TextKind, Content)>,
+        pub texts: Vec<(pns_types::DomainHash, TextKind, Content)>,
     }
 
     #[cfg(feature = "std")]
@@ -149,11 +137,11 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         AddressChanged {
-            node: T::DomainHash,
+            node: pns_types::DomainHash,
             address: Address<T::AccountId>,
         },
         TextsChanged {
-            node: T::DomainHash,
+            node: pns_types::DomainHash,
             kind: TextKind,
             content: Content,
         },
@@ -174,7 +162,7 @@ pub mod pallet {
         #[pallet::weight(T::WeightInfo::set_account())]
         pub fn set_account(
             origin: OriginFor<T>,
-            node: T::DomainHash,
+            node: pns_types::DomainHash,
             address: Address<T::AccountId>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
@@ -193,7 +181,7 @@ pub mod pallet {
         #[pallet::weight(T::WeightInfo::set_text(content.0.len() as u32))]
         pub fn set_text(
             origin: OriginFor<T>,
-            node: T::DomainHash,
+            node: pns_types::DomainHash,
             kind: TextKind,
             content: Content,
         ) -> DispatchResult {
@@ -226,9 +214,8 @@ pub trait WeightInfo {
 }
 
 pub trait RegistryChecker {
-    type Hash;
     type AccountId;
-    fn check_node_useable(node: Self::Hash, owner: &Self::AccountId) -> bool;
+    fn check_node_useable(node: pns_types::DomainHash, owner: &Self::AccountId) -> bool;
 }
 
 #[derive(

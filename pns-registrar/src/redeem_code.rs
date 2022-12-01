@@ -35,7 +35,7 @@ pub mod pallet {
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::EnsureOrigin};
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
-    use sp_runtime::traits::{AtLeast32BitUnsigned, IdentifyAccount, Verify};
+    use sp_runtime::traits::{AtLeast32Bit, IdentifyAccount, Verify};
     use sp_std::vec::Vec;
 
     #[pallet::config]
@@ -44,22 +44,13 @@ pub mod pallet {
 
         type WeightInfo: WeightInfo;
 
-        type Registrar: Registrar<
-            AccountId = Self::AccountId,
-            Hash = Self::Hash,
-            Duration = Self::Moment,
-        >;
+        type Registrar: Registrar<AccountId = Self::AccountId, Moment = Self::Moment>;
 
-        type Moment: Clone
-            + Copy
-            + Decode
-            + Encode
-            + Eq
-            + PartialEq
-            + core::fmt::Debug
+        type Moment: AtLeast32Bit
+            + Parameter
             + Default
-            + TypeInfo
-            + AtLeast32BitUnsigned
+            + Copy
+            + MaxEncodedLen
             + MaybeSerializeDeserialize;
 
         type Public: TypeInfo
@@ -119,7 +110,7 @@ pub mod pallet {
         /// When the redemption code is used, it will be logged.
         RedeemCodeUsed {
             code: T::Signature,
-            node: T::Hash,
+            node: pns_types::DomainHash,
             to: T::AccountId,
         },
     }
@@ -191,7 +182,7 @@ pub mod pallet {
                 Error::<T>::RedeemsHasBeenUsed
             );
 
-            let (label, _) = Label::<T::Hash>::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
+            let (label, _) = Label::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             let label_node = label.node;
             let data = (label_node, duration, nouce).encode();
@@ -245,8 +236,7 @@ pub mod pallet {
                 Error::<T>::RedeemsHasBeenUsed
             );
 
-            let (label, label_len) =
-                Label::<T::Hash>::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
+            let (label, label_len) = Label::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             ensure!(label_len.is_registrable(), Error::<T>::LabelLenInvalid);
 

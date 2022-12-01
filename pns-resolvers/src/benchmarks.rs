@@ -6,6 +6,7 @@ use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_support::traits::Get;
 use frame_system::RawOrigin;
+use pns_types::DomainHash;
 use sp_runtime::traits::StaticLookup;
 use sp_runtime::DispatchError;
 
@@ -13,21 +14,20 @@ benchmarks! {
     where_clause {
         where
         T: pns_registrar::origin::Config + pns_registrar::registrar::Config,
-        T::DomainHash: From<T::Hash>,
     }
 
     set_account {
-        let (owner,node) = get_cupnfishu_node::<T>()?;
-    }: _(RawOrigin::Signed(owner.clone()),node.into(),Address::Id(owner.clone()))
+        let (owner,node) = get_cupnfish_node::<T>()?;
+    }: _(RawOrigin::Signed(owner.clone()),node,Address::Id(owner.clone()))
 
     set_text {
         let l in 0..1024;
-        let (owner,node) = get_cupnfishu_node::<T>()?;
+        let (owner,node) = get_cupnfish_node::<T>()?;
         let data = Content(sp_std::vec![7;l as usize]);
-    }: _(RawOrigin::Signed(owner), node.into(),TextKind::Email,data)
+    }: _(RawOrigin::Signed(owner), node,TextKind::Email,data)
 }
 
-fn get_cupnfishu_node<T>() -> Result<(T::AccountId, T::Hash), DispatchError>
+fn get_cupnfish_node<T>() -> Result<(T::AccountId, DomainHash), DispatchError>
 where
     T: pns_registrar::registrar::Config + pns_registrar::origin::Config,
 {
@@ -41,7 +41,7 @@ where
     )?;
     Ok((
         owner_clone,
-        pns_registrar::traits::Label::<T::Hash>::new("cupnfishuuu".as_bytes())
+        pns_registrar::traits::Label::new("cupnfishuuu".as_bytes())
             .unwrap()
             .0
             .encode_with_node(&T::BaseNode::get()),

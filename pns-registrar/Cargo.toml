@@ -69,6 +69,9 @@ features = ["derive"]
 workspace = true
 default-features = false
 
+[dependencies.pns-types]
+path = "../pns-types"
+default-features = false
 
 [dev-dependencies]
 sp-consensus-aura.workspace = true
@@ -80,11 +83,7 @@ path = "../pns-resolvers"
 
 [features]
 default = ['std']
-runtime-benchmarks = [
-    'frame-benchmarking/runtime-benchmarks',
-    'frame-support/runtime-benchmarks',
-    'frame-system/runtime-benchmarks',
-]
+runtime-benchmarks = ['frame-benchmarking/runtime-benchmarks', 'frame-support/runtime-benchmarks', 'frame-system/runtime-benchmarks']
 std = [
     'codec/std',
     'frame-support/std',
@@ -98,5 +97,6 @@ std = [
     'scale-info/std',
     'serde/std',
     'pallet-balances/std',
+    "pns-types/std",
 ]
 try-runtime = ['frame-support/try-runtime']

@@ -67,9 +67,9 @@ fn register_test() {
 
         assert_eq!(gas_fee, 0);
 
-        let (label, len) = Label::<Hash>::new(name).unwrap();
+        let (label, len) = Label::new(name).unwrap();
 
-        let (label2, len2) = Label::<Hash>::new(name2).unwrap();
+        let (label2, len2) = Label::new(name2).unwrap();
 
         assert!(len == 11);
 
@@ -222,7 +222,7 @@ fn register_test() {
             registry::Error::<Test>::NoPermission
         );
 
-        let (test_label, _) = Label::<Hash>::new(b"test1").unwrap();
+        let (test_label, _) = Label::new(b"test1").unwrap();
         let test_node = test_label.encode_with_node(&node2);
 
         assert!(Nft::is_owner(&MONEY_ACCOUNT, (0, test_node)));
@@ -239,7 +239,7 @@ fn redeem_code_test() {
         ));
 
         let nouce = 0_u32;
-        let (label, _) = Label::<Hash>::new("cupnfish".as_bytes()).unwrap();
+        let (label, _) = Label::new("cupnfish".as_bytes()).unwrap();
         let label_node = label.node;
         let duration = MinRegistrationDuration::get();
 
@@ -473,32 +473,29 @@ fn resolvers_test() {
 #[test]
 fn label_test() {
     // 中文 test
-    assert!(Label::<Hash>::new("中文域名暂不支持".as_bytes()).is_none());
+    assert!(Label::new("中文域名暂不支持".as_bytes()).is_none());
 
     // white space test
-    assert!(Label::<Hash>::new("hello world".as_bytes()).is_none());
+    assert!(Label::new("hello world".as_bytes()).is_none());
 
     // dot test
-    assert!(Label::<Hash>::new("hello.world".as_bytes()).is_none());
+    assert!(Label::new("hello.world".as_bytes()).is_none());
 
     // '-' test
-    assert!(Label::<Hash>::new("-hello".as_bytes()).is_none());
-    assert!(Label::<Hash>::new("he-llo".as_bytes()).is_none());
-    assert!(Label::<Hash>::new("he--llo".as_bytes()).is_none());
-    assert!(Label::<Hash>::new("hello-".as_bytes()).is_none());
+    assert!(Label::new("-hello".as_bytes()).is_none());
+    assert!(Label::new("he-llo".as_bytes()).is_none());
+    assert!(Label::new("he--llo".as_bytes()).is_none());
+    assert!(Label::new("hello-".as_bytes()).is_none());
 
     // normal label test
-    assert!(Label::<Hash>::new("hello".as_bytes()).is_some());
-    assert!(Label::<Hash>::new("111hello".as_bytes()).is_some());
-    assert!(Label::<Hash>::new("123455".as_bytes()).is_some());
-    assert!(Label::<Hash>::new("0x1241513".as_bytes()).is_some());
+    assert!(Label::new("hello".as_bytes()).is_some());
+    assert!(Label::new("111hello".as_bytes()).is_some());
+    assert!(Label::new("123455".as_bytes()).is_some());
+    assert!(Label::new("0x1241513".as_bytes()).is_some());
 
     // result test
     assert_eq!(
-        Label::<Hash>::new("dot".as_bytes())
-            .unwrap()
-            .0
-            .to_basenode(),
+        Label::new("dot".as_bytes()).unwrap().0.to_basenode(),
         DOT_BASENODE
     )
 }

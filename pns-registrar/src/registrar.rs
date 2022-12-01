@@ -41,58 +41,45 @@
 //! will be too low and the transaction will be restricted.
 
 pub use pallet::*;
+use pns_types::DomainHash;
 
-type BalanceOf<T> = <<T as Config>::Currency as frame_support::traits::Currency<
+pub type BalanceOf<T> = <<T as Config>::Currency as frame_support::traits::Currency<
     <T as frame_system::Config>::AccountId,
 >>::Balance;
 
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use sp_std::vec::Vec;
-
     use crate::traits::{IsRegistrarOpen, Label, Official, PriceOracle, Registry};
     use frame_support::{
         pallet_prelude::*,
-        traits::{Currency, EnsureOrigin, ExistenceRequirement, ReservableCurrency, UnixTime},
+        traits::{Currency, EnsureOrigin, ExistenceRequirement, ReservableCurrency, Time},
         Twox64Concat,
     };
     use frame_system::{ensure_signed, pallet_prelude::*};
-    use scale_info::TypeInfo;
-    use serde::{Deserialize, Serialize};
-    use sp_runtime::traits::{
-        AtLeast32BitUnsigned, CheckedAdd, MaybeSerializeDeserialize, StaticLookup,
-    };
+    use pns_types::{DomainHash, RegistrarInfo};
+    use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, StaticLookup};
     use sp_runtime::ArithmeticError;
+    use sp_std::vec::Vec;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        type ResolverId: Clone + Decode + Encode + Eq + PartialEq + core::fmt::Debug + Default;
+        type ResolverId: Parameter + Default;
 
-        type Registry: Registry<
-            AccountId = Self::AccountId,
-            Hash = Self::Hash,
-            Balance = BalanceOf<Self>,
-        >;
+        type Registry: Registry<AccountId = Self::AccountId, Balance = BalanceOf<Self>>;
 
         type Currency: ReservableCurrency<Self::AccountId>;
 
-        type Moment: Clone
-            + Copy
-            + Decode
-            + Encode
-            + Eq
-            + PartialEq
-            + core::fmt::Debug
-            + Default
-            + TypeInfo
-            + AtLeast32BitUnsigned
-            + MaybeSerializeDeserialize
-            + MaxEncodedLen;
+        type NowProvider: Time<Moment = Self::Moment>;
 
-        type NowProvider: UnixTime;
+        type Moment: AtLeast32Bit
+            + Parameter
+            + Default
+            + Copy
+            + MaxEncodedLen
+            + MaybeSerializeDeserialize;
 
         #[pallet::constant]
         type GracePeriod: Get<Self::Moment>;
@@ -101,14 +88,14 @@ pub mod pallet {
         type DefaultCapacity: Get<u32>;
 
         #[pallet::constant]
-        type BaseNode: Get<Self::Hash>;
+        type BaseNode: Get<DomainHash>;
 
         #[pallet::constant]
         type MinRegistrationDuration: Get<Self::Moment>;
 
         type WeightInfo: WeightInfo;
 
-        type PriceOracle: PriceOracle<Duration = Self::Moment, Balance = BalanceOf<Self>>;
+        type PriceOracle: PriceOracle<Moment = Self::Moment, Balance = BalanceOf<Self>>;
 
         type ManagerOrigin: EnsureOrigin<Self::RuntimeOrigin, Success = Self::AccountId>;
 
@@ -124,41 +111,18 @@ pub mod pallet {
     /// `name_hash` -> Info{ `expire`, `capacity`, `deposity`, `register_fee`}
     #[pallet::storage]
     pub type RegistrarInfos<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::Hash, RegistrarInfoOf<T>>;
+        StorageMap<_, Blake2_128Concat, DomainHash, RegistrarInfoOf<T>>;
 
     /// `name_hash` if in `reserved_list` -> ()
     #[pallet::storage]
-    pub type ReservedList<T: Config> = StorageMap<_, Twox64Concat, T::Hash, (), ValueQuery>;
-
-    #[derive(
-        Encode,
-        Decode,
-        PartialEq,
-        Eq,
-        RuntimeDebug,
-        Clone,
-        TypeInfo,
-        Deserialize,
-        Serialize,
-        MaxEncodedLen,
-    )]
-    pub struct RegistrarInfo<Duration, Balance> {
-        /// 到期的时间
-        pub expire: Duration,
-        /// 可创建的子域名容量
-        pub capacity: u32,
-        /// 押金
-        pub deposit: Balance,
-        /// 注册费
-        pub register_fee: Balance,
-    }
+    pub type ReservedList<T: Config> = StorageMap<_, Twox64Concat, DomainHash, (), ValueQuery>;
 
     pub type RegistrarInfoOf<T> = RegistrarInfo<<T as Config>::Moment, BalanceOf<T>>;
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
-        pub infos: Vec<(T::Hash, RegistrarInfoOf<T>)>,
-        pub reserved_list: sp_std::collections::btree_set::BTreeSet<T::Hash>,
+        pub infos: Vec<(DomainHash, RegistrarInfoOf<T>)>,
+        pub reserved_list: sp_std::collections::btree_set::BTreeSet<DomainHash>,
     }
 
     #[cfg(feature = "std")]
@@ -190,7 +154,7 @@ pub mod pallet {
         /// When a domain name is successfully registered, this moment will be logged.
         NameRegistered {
             name: Vec<u8>,
-            node: T::Hash,
+            node: DomainHash,
             owner: T::AccountId,
             expire: T::Moment,
         },
@@ -198,21 +162,21 @@ pub mod pallet {
         /// When a domain name is successfully renewed, this moment will be logged.
         NameRenewed {
             name: Vec<u8>,
-            node: T::Hash,
+            node: DomainHash,
             duration: T::Moment,
             expire: T::Moment,
         },
         /// When a sub-domain name is successfully registered, this moment will be logged.
         SubnameRegistered {
             label: Vec<u8>,
-            subnode: T::Hash,
+            subnode: DomainHash,
             owner: T::AccountId,
-            node: T::Hash,
+            node: DomainHash,
         },
         /// Reserve a domain name.
-        NameReserved { node: T::Hash },
+        NameReserved { node: DomainHash },
         /// Cancel a reserved domain name.
-        NameUnReserved { node: T::Hash },
+        NameUnReserved { node: DomainHash },
     }
 
     #[pallet::error]
@@ -249,7 +213,7 @@ pub mod pallet {
         /// Add a domain from the reserved list
         /// Only root
         #[pallet::weight(T::WeightInfo::add_reserved())]
-        pub fn add_reserved(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
+        pub fn add_reserved(origin: OriginFor<T>, node: DomainHash) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
             ReservedList::<T>::insert(node, ());
@@ -260,7 +224,7 @@ pub mod pallet {
         /// Remove a domain from the reserved list
         /// Only root
         #[pallet::weight(T::WeightInfo::remove_reserved())]
-        pub fn remove_reserved(origin: OriginFor<T>, node: T::Hash) -> DispatchResult {
+        pub fn remove_reserved(origin: OriginFor<T>, node: DomainHash) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
 
             ReservedList::<T>::remove(node);
@@ -293,8 +257,7 @@ pub mod pallet {
                 Error::<T>::RegistryDurationInvalid
             );
 
-            let (label, label_len) =
-                Label::<T::Hash>::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
+            let (label, label_len) = Label::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             use crate::traits::Available;
 
@@ -302,7 +265,7 @@ pub mod pallet {
 
             let official = T::Official::get_official_account()?;
 
-            let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
+            let now = T::NowProvider::now();
 
             let expire = now
                 .checked_add(&duration)
@@ -392,8 +355,7 @@ pub mod pallet {
 
             ensure!(T::IsOpen::is_open(), Error::<T>::RegistrarClosed);
 
-            let (label, label_len) =
-                Label::<T::Hash>::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
+            let (label, label_len) = Label::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             let label_node = label.encode_with_node(&T::BaseNode::get());
 
@@ -401,7 +363,7 @@ pub mod pallet {
                 let info = info.as_mut().ok_or(Error::<T>::NotExistOrOccupied)?;
 
                 let expire = info.expire;
-                let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
+                let now = T::NowProvider::now();
                 let grace_period = T::GracePeriod::get();
                 ensure!(now <= expire + grace_period, Error::<T>::NotRenewable);
                 let target_expire = expire
@@ -443,7 +405,7 @@ pub mod pallet {
         pub fn transfer(
             origin: OriginFor<T>,
             to: <T::Lookup as StaticLookup>::Source,
-            node: T::Hash,
+            node: DomainHash,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
             let to = T::Lookup::lookup(to)?;
@@ -451,7 +413,7 @@ pub mod pallet {
             ensure!(T::IsOpen::is_open(), Error::<T>::RegistrarClosed);
 
             if let Some(info) = RegistrarInfos::<T>::get(node) {
-                let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
+                let now = T::NowProvider::now();
                 ensure!(
                     info.expire + T::GracePeriod::get() > now,
                     Error::<T>::NotOwned
@@ -471,7 +433,7 @@ pub mod pallet {
         #[frame_support::transactional]
         pub fn mint_subname(
             origin: OriginFor<T>,
-            node: T::Hash,
+            node: DomainHash,
             data: Vec<u8>,
             to: <T::Lookup as StaticLookup>::Source,
         ) -> DispatchResult {
@@ -498,10 +460,10 @@ pub mod pallet {
     }
 }
 
-use crate::traits::{IntoMoment, Label, Official, Registry};
+use crate::traits::{Label, Official, Registry};
 use frame_support::{
     dispatch::{DispatchResult, Weight},
-    traits::{Currency, Get, UnixTime},
+    traits::{Currency, Get, Time},
 };
 use sp_runtime::{
     traits::{CheckedAdd, Zero},
@@ -519,13 +481,12 @@ pub trait WeightInfo {
 }
 
 impl<T: Config> crate::traits::Registrar for Pallet<T> {
-    type Hash = T::Hash;
     type Balance = BalanceOf<T>;
     type AccountId = T::AccountId;
-    type Duration = T::Moment;
+    type Moment = T::Moment;
 
-    fn check_expires_registrable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
+    fn check_expires_registrable(node: DomainHash) -> sp_runtime::DispatchResult {
+        let now = T::NowProvider::now();
 
         let expire = RegistrarInfos::<T>::get(node)
             .ok_or(Error::<T>::NotExistOrOccupied)?
@@ -537,7 +498,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     }
 
     // fn for_auction_set_expires(
-    // 	node: Self::Hash,
+    // 	node: DomainHash,
     // 	deposit: Self::Balance,
     // 	register_fee: Self::Balance,
     // ) {
@@ -555,8 +516,8 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     // })
     // }
 
-    fn check_expires_renewable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
+    fn check_expires_renewable(node: DomainHash) -> sp_runtime::DispatchResult {
+        let now = T::NowProvider::now();
 
         let expire = RegistrarInfos::<T>::get(node)
             .ok_or(Error::<T>::NotExistOrOccupied)?
@@ -570,8 +531,8 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         Ok(())
     }
 
-    fn check_expires_useable(node: Self::Hash) -> sp_runtime::DispatchResult {
-        let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
+    fn check_expires_useable(node: DomainHash) -> sp_runtime::DispatchResult {
+        let now = T::NowProvider::now();
 
         let expire = RegistrarInfos::<T>::get(node)
             .ok_or(Error::<T>::NotExistOrOccupied)?
@@ -583,7 +544,7 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     }
 
     fn clear_registrar_info(
-        node: Self::Hash,
+        node: DomainHash,
         owner: &Self::AccountId,
     ) -> sp_runtime::DispatchResult {
         let official = T::Official::get_official_account()?;
@@ -605,11 +566,11 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
     fn for_redeem_code(
         name: Vec<u8>,
         to: Self::AccountId,
-        duration: Self::Duration,
-        label: Label<Self::Hash>,
+        duration: Self::Moment,
+        label: Label,
     ) -> DispatchResult {
         let official = T::Official::get_official_account()?;
-        let now = IntoMoment::<T>::into_moment(T::NowProvider::now());
+        let now = T::NowProvider::now();
         let expire = now
             .checked_add(&duration)
             .ok_or(ArithmeticError::Overflow)?;
@@ -664,18 +625,8 @@ impl<T: Config> crate::traits::Registrar for Pallet<T> {
         Ok(())
     }
 
-    fn basenode() -> Self::Hash {
+    fn basenode() -> DomainHash {
         T::BaseNode::get()
-    }
-}
-use sp_runtime::traits::SaturatedConversion;
-
-impl<T: Config> IntoMoment<T> for core::time::Duration {
-    type Moment = T::Moment;
-
-    fn into_moment(self) -> Self::Moment {
-        let duration = self.as_secs();
-        SaturatedConversion::saturated_from(duration)
     }
 }
 
@@ -702,5 +653,11 @@ impl WeightInfo for () {
 
     fn remove_reserved() -> Weight {
         Weight::zero()
+    }
+}
+
+impl<T: Config> Pallet<T> {
+    pub fn get_info(id: DomainHash) -> Option<RegistrarInfoOf<T>> {
+        RegistrarInfos::<T>::get(id)
     }
 }

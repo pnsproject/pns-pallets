@@ -1,6 +1,7 @@
 use codec::{Encode, FullCodec};
 use core::fmt::Debug;
 use frame_support::traits::Currency;
+use pns_types::DomainHash;
 
 use sp_io::hashing::keccak_256;
 use sp_runtime::{
@@ -10,23 +11,22 @@ use sp_runtime::{
 use sp_std::vec::Vec;
 
 pub trait Registrar {
-    type Hash;
     type Balance;
     type AccountId;
-    type Duration;
-    fn check_expires_registrable(node: Self::Hash) -> DispatchResult;
-    fn check_expires_renewable(node: Self::Hash) -> DispatchResult;
-    fn check_expires_useable(node: Self::Hash) -> DispatchResult;
-    fn clear_registrar_info(node: Self::Hash, owner: &Self::AccountId) -> DispatchResult;
+    type Moment;
+    fn check_expires_registrable(node: DomainHash) -> DispatchResult;
+    fn check_expires_renewable(node: DomainHash) -> DispatchResult;
+    fn check_expires_useable(node: DomainHash) -> DispatchResult;
+    fn clear_registrar_info(node: DomainHash, owner: &Self::AccountId) -> DispatchResult;
     fn for_redeem_code(
         name: Vec<u8>,
         to: Self::AccountId,
-        duration: Self::Duration,
-        label: Label<Self::Hash>,
+        duration: Self::Moment,
+        label: Label,
     ) -> DispatchResult;
-    fn basenode() -> Self::Hash;
+    fn basenode() -> DomainHash;
     // fn for_auction_set_expires(
-    // 	node: Self::Hash,
+    // 	node: DomainHash,
     // 	deposit: Self::Balance,
     // 	register_fee: Self::Balance,
     // );
@@ -35,18 +35,17 @@ pub trait Registrar {
 /// 登记表
 pub trait Registry: NFT<Self::AccountId> {
     type AccountId;
-    type Hash;
 
     fn mint_subname(
         node_owner: &Self::AccountId,
-        node: Self::Hash,
-        label_node: Self::Hash,
+        node: DomainHash,
+        label_node: DomainHash,
         to: Self::AccountId,
         capacity: u32,
         do_payments: impl FnOnce(Option<&Self::AccountId>) -> DispatchResult,
     ) -> DispatchResult;
-    fn available(caller: &Self::AccountId, node: Self::Hash) -> DispatchResult;
-    fn transfer(from: &Self::AccountId, to: &Self::AccountId, node: Self::Hash) -> DispatchResult;
+    fn available(caller: &Self::AccountId, node: DomainHash) -> DispatchResult;
+    fn transfer(from: &Self::AccountId, to: &Self::AccountId, node: DomainHash) -> DispatchResult;
 }
 
 // 客户
@@ -56,15 +55,15 @@ pub trait Customer<AccountId> {
 }
 
 pub trait PriceOracle {
-    type Duration;
+    type Moment;
     type Balance;
     /// Returns the price to register or renew a name.
     /// * `name`: The name being registered or renewed.
     /// * `expires`: When the name presently expires (0 if this is a new registration).
     /// * `duration`: How long the name is being registered or extended for, in seconds.
     /// return The price of this renewal or registration, in wei.
-    fn renew_fee(name_len: usize, duration: Self::Duration) -> Option<Self::Balance>;
-    fn register_fee(name_len: usize, duration: Self::Duration) -> Option<Self::Balance>;
+    fn renew_fee(name_len: usize, duration: Self::Moment) -> Option<Self::Balance>;
+    fn register_fee(name_len: usize, duration: Self::Moment) -> Option<Self::Balance>;
     fn deposit_fee(name_len: usize) -> Option<Self::Balance>;
     fn registration_fee(name_len: usize) -> Option<Self::Balance>;
 }
@@ -101,45 +100,42 @@ pub trait NFT<AccountId> {
     ) -> DispatchResult;
 }
 
-pub struct Label<Hash> {
-    pub node: Hash,
+pub struct Label {
+    pub node: DomainHash,
 }
 pub const LABEL_MAX_LEN: usize = 63;
 pub const LABEL_MIN_LEN: usize = 3;
 pub const MIN_REGISTRABLE_LEN: usize = 10;
 
-impl<Hash> Label<Hash>
-where
-    Hash: Default + AsMut<[u8]> + Encode + Clone,
-{
+impl Label {
     pub fn new(data: &[u8]) -> Option<(Self, usize)> {
         check_label(data)?;
 
-        let node = sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(data));
+        let node = DomainHash::from(keccak_256(data));
         Some((Self { node }, data.len()))
     }
 
-    pub fn encode_with_baselabel(&self, baselabel: &Hash) -> Hash {
+    pub fn encode_with_baselabel(&self, baselabel: &DomainHash) -> DomainHash {
         let basenode = Self::basenode(baselabel);
         let encoded_again = &(basenode, &self.node).encode();
 
-        sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(encoded_again))
+        DomainHash::from(keccak_256(encoded_again))
     }
 
-    pub fn basenode(baselabel: &Hash) -> Hash {
-        let encoded = &(Hash::default(), baselabel).encode();
+    pub fn basenode(baselabel: &DomainHash) -> DomainHash {
+        let encoded = &(DomainHash::default(), baselabel).encode();
         let hash_encoded = keccak_256(encoded);
-        sp_core::convert_hash::<Hash, [u8; 32]>(&hash_encoded)
+        DomainHash::from(hash_encoded)
     }
 
-    pub fn to_basenode(&self) -> Hash {
+    pub fn to_basenode(&self) -> DomainHash {
         Self::basenode(&self.node)
     }
 
-    pub fn encode_with_node(&self, node: &Hash) -> Hash {
+    pub fn encode_with_node(&self, node: &DomainHash) -> DomainHash {
         let encoded = &(node, &self.node).encode();
 
-        sp_core::convert_hash::<Hash, [u8; 32]>(&keccak_256(encoded))
+        DomainHash::from(keccak_256(encoded))
     }
 }
 // TODO: (暂不支持中文域名)
@@ -195,11 +191,6 @@ impl Available for usize {
     fn is_registrable(&self) -> bool {
         *self >= MIN_REGISTRABLE_LEN
     }
-}
-
-pub trait IntoMoment<T> {
-    type Moment;
-    fn into_moment(self) -> Self::Moment;
 }
 
 pub trait ExchangeRate {

@@ -2,6 +2,7 @@ use core::marker::PhantomData;
 
 use frame_support::dispatch::Weight;
 use frame_support::traits::Get;
+use pns_types::DomainHash;
 use sp_std::vec::Vec;
 
 use crate::{nft, origin, price_oracle, registry};
@@ -9,7 +10,7 @@ use crate::{nft, origin, price_oracle, registry};
 pub struct Initialize<T>(PhantomData<T>);
 
 impl<T: registry::Config> Initialize<T> {
-    pub fn initial_registry(official: T::AccountId, root_domain: T::Hash) -> Weight {
+    pub fn initial_registry(official: T::AccountId, root_domain: DomainHash) -> Weight {
         // writes 1
         registry::Official::<T>::put(&official);
 
