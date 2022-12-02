@@ -20,7 +20,6 @@ pub mod pallet {
     use serde::{Deserialize, Serialize};
     use sp_runtime::traits::AtLeast32BitUnsigned;
     use sp_std::vec;
-    use sp_std::vec::Vec;
 
     use super::RegistryChecker;
 
@@ -226,11 +225,9 @@ pub trait RegistryChecker {
     Clone,
     frame_support::RuntimeDebug,
     scale_info::TypeInfo,
-    serde::Serialize,
-    serde::Deserialize,
     Default,
 )]
-#[cfg_attr(feature = "std", derive(Hash))]
+#[cfg_attr(feature = "std", derive(Hash, serde::Serialize, serde::Deserialize))]
 pub struct Content(pub Vec<u8>);
 
 impl MaxEncodedLen for Content {

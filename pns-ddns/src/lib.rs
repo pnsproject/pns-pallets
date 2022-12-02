@@ -21,9 +21,9 @@ pub struct ServerDeps<Client, Block, Config> {
 }
 
 impl<Client, Block, Config> ServerDeps<Client, Block, Config> {
-    pub fn new(client: Client, socket: impl Into<SocketAddr>) -> Self {
+    pub fn new(client: Arc<Client>, socket: impl Into<SocketAddr>) -> Self {
         Self {
-            client: Arc::new(client),
+            client,
             socket: socket.into(),
             _block: PhantomData::default(),
         }
@@ -44,7 +44,8 @@ where
         let Self { client, socket, .. } = self;
 
         let app = Router::new()
-            .route("/id", get(Self::get_info))
+            .route("/get_info/:id", get(Self::get_info))
+            .route("/hello", get(Self::hello))
             .with_state(client);
 
         axum::Server::bind(&socket)
@@ -69,4 +70,16 @@ where
 
         Json(res)
     }
+
+    async fn hello() -> &'static str {
+        "Hello, World!"
+    }
+}
+
+#[test]
+fn test() {
+    let a = DomainHash::zero();
+    println!("{a:?}");
+    let json = serde_json::to_string(&a);
+    println!("{json:?}");
 }

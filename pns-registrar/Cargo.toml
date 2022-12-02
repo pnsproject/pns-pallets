@@ -12,66 +12,33 @@ version = "0.1.0"
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
-[dependencies.serde]
-default-features = false
-workspace = true
-features = ["derive"]
 
-[dependencies.sp-core]
-default-features = false
-workspace = true
-
-[dependencies.sp-io]
-default-features = false
-workspace = true
-
-[dependencies.sp-std]
-default-features = false
-workspace = true
-
-
-[dependencies.sp-runtime]
-default-features = false
-workspace = true
-
-[dependencies.sp-api]
-default-features = false
-workspace = true
+[dependencies]
+serde.workspace = true
+sp-core.workspace = true
+sp-io.workspace = true
+sp-std.workspace = true
+sp-runtime.workspace = true
+sp-api.workspace = true
+frame-support.workspace = true
+frame-system.workspace = true
+scale-info.workspace = true
+pallet-balances.workspace = true
 
 
 [dependencies.codec]
 workspace = true
-default-features = false
-features = ["derive", "max-encoded-len"]
 package = "parity-scale-codec"
 
 [dependencies.frame-benchmarking]
-default-features = false
 workspace = true
 optional = true
 
 
-[dependencies.frame-support]
-default-features = false
-workspace = true
-
-[dependencies.frame-system]
-default-features = false
-workspace = true
-
-
-[dependencies.scale-info]
-workspace = true
-default-features = false
-features = ["derive"]
-
-[dependencies.pallet-balances]
-workspace = true
-default-features = false
-
 [dependencies.pns-types]
-path = "../pns-types"
 default-features = false
+path = "../pns-types"
+
 
 [dev-dependencies]
 sp-consensus-aura.workspace = true
@@ -88,7 +55,7 @@ std = [
     'codec/std',
     'frame-support/std',
     'frame-system/std',
-    'frame-benchmarking/std',
+    'frame-benchmarking?/std',
     'sp-io/std',
     'sp-runtime/std',
     'sp-std/std',
@@ -97,6 +64,6 @@ std = [
     'scale-info/std',
     'serde/std',
     'pallet-balances/std',
-    "pns-types/std",
+    'pns-types/std',
 ]
 try-runtime = ['frame-support/try-runtime']

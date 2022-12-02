@@ -5,36 +5,18 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-
 [dependencies.codec]
 workspace = true
-default-features = false
 package = "parity-scale-codec"
-features = ["derive", "max-encoded-len"]
 
-[dependencies.scale-info]
-workspace = true
-default-features = false
-features = ["derive"]
+[dependencies]
+scale-info.workspace = true
+serde = { optional = true, workspace = true }
+frame-support.workspace = true
+sp-api.workspace = true
+sp-core.workspace = true
 
-[dependencies.serde]
-default-features = false
-workspace = true
-features = ["derive", "alloc"]
-optional = true
-
-[dependencies.sp-api]
-default-features = false
-workspace = true
-
-[dependencies.frame-support]
-default-features = false
-workspace = true
-
-[dependencies.sp-core]
-default-features = false
-workspace = true
 
 [features]
 default = ['std']
-std = ['codec/std', 'scale-info/std', 'serde', 'sp-api/std', 'frame-support/std', 'sp-core/std']
+std = ['scale-info/std', 'serde', 'frame-support/std', 'sp-api/std', 'sp-core/std']
