@@ -660,4 +660,7 @@ impl<T: Config> Pallet<T> {
     pub fn get_info(id: DomainHash) -> Option<RegistrarInfoOf<T>> {
         RegistrarInfos::<T>::get(id)
     }
+    pub fn all() -> Vec<(DomainHash, RegistrarInfoOf<T>)> {
+        RegistrarInfos::<T>::iter().collect::<Vec<_>>()
+    }
 }

@@ -9,6 +9,7 @@ edition = "2021"
 sp-api = { workspace = true, features = ['std'] }
 sp-blockchain.workspace = true
 sp-block-builder = { workspace = true, features = ['std'] }
+sp-core = { workspace = true, features = ['std'] }
 
 axum.workspace = true
 tracing.workspace = true

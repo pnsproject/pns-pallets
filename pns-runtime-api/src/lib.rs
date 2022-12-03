@@ -12,5 +12,6 @@ sp_api::decl_runtime_apis! {
     Balance: Decode+ Encode + MaybeSerialize,
     {
         fn get_info(id: DomainHash) -> Option<RegistrarInfo<Duration, Balance>>;
+        fn all() -> sp_std::vec::Vec<(DomainHash,RegistrarInfo<Duration, Balance>)>;
     }
 }
