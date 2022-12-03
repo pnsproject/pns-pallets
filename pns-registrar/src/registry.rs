@@ -204,38 +204,36 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         pub(crate) fn do_burn(caller: T::AccountId, token: T::TokenId) -> DispatchResult {
             let class_id = T::ClassId::zero();
-            if let Some(token_info) = nft::Pallet::<T>::tokens(class_id, token) {
-                let token_owner = token_info.owner;
-                ensure!(token_info.data.children == 0, Error::<T>::SubnodeNotClear);
+            let Some(token_info) = nft::Pallet::<T>::tokens(class_id, token) else {
+                return Err(Error::<T>::NotExist.into())
+            };
 
-                Self::verify_with_owner(&caller, token, &token_owner)?;
+            let token_owner = token_info.owner;
+            ensure!(token_info.data.children == 0, Error::<T>::SubnodeNotClear);
 
-                if let Some(origin) = RuntimeOrigin::<T>::get(token) {
-                    match origin {
-                        DomainTracing::RuntimeOrigin(origin) => {
-                            Self::sub_children(origin, class_id)?
-                        }
-                        DomainTracing::Root => {
-                            T::Registrar::clear_registrar_info(token, &token_owner)?;
-                        }
-                    }
-                } else {
-                    return Err(Error::<T>::BanBurnBaseNode.into());
+            Self::verify_with_owner(&caller, token, &token_owner)?;
+
+            let Some(origin) = RuntimeOrigin::<T>::get(token) else {
+                    return Err(Error::<T>::BanBurnBaseNode.into())
+            };
+
+            match origin {
+                DomainTracing::RuntimeOrigin(origin) => Self::sub_children(origin, class_id)?,
+                DomainTracing::Root => {
+                    T::Registrar::clear_registrar_info(token, &token_owner)?;
                 }
-
-                nft::Pallet::<T>::burn(&token_owner, (class_id, token))?;
-
-                Self::deposit_event(Event::<T>::TokenBurned {
-                    class_id,
-                    token_id: token,
-                    node: token,
-                    owner: token_owner,
-                    caller,
-                });
-                Ok(())
-            } else {
-                Err(Error::<T>::NotExist.into())
             }
+
+            nft::Pallet::<T>::burn(&token_owner, (class_id, token))?;
+
+            Self::deposit_event(Event::<T>::TokenBurned {
+                class_id,
+                token_id: token,
+                node: token,
+                owner: token_owner,
+                caller,
+            });
+            Ok(())
         }
 
         #[cfg_attr(
@@ -256,79 +254,74 @@ pub mod pallet {
             // dot: hash 0xce159cf34380757d1932a8e4a74e85e85957b0a7a52d9c566c0a3c8d6133d0f7
             // [206, 21, 156, 243, 67, 128, 117, 125, 25, 50, 168, 228, 167, 78, 133, 232, 89, 87,
             // 176, 167, 165, 45, 156, 86, 108, 10, 60, 141, 97, 51, 208, 247]
-            if let Some(node_info) = nft::Pallet::<T>::tokens(class_id, node) {
-                let node_owner = node_info.owner;
+            let Some(node_info) = nft::Pallet::<T>::tokens(class_id, node) else {
+                return Err(Error::<T>::NotExist.into());
+            };
 
-                Self::verify_with_owner(owner, node, &node_owner)?;
+            let node_owner = node_info.owner;
 
-                if let Some(info) = nft::Tokens::<T>::get(class_id, label_node) {
-                    T::Registrar::check_expires_registrable(label_node)?;
+            Self::verify_with_owner(owner, node, &node_owner)?;
 
-                    let from = info.owner;
+            if let Some(info) = nft::Tokens::<T>::get(class_id, label_node) {
+                T::Registrar::check_expires_registrable(label_node)?;
 
-                    do_payments(Some(&from))?;
+                let from = info.owner;
 
-                    nft::Pallet::<T>::transfer(&from, &to, (class_id, label_node))?;
-                } else {
-                    do_payments(None)?;
+                do_payments(Some(&from))?;
 
-                    nft::Pallet::<T>::mint(
-                        &to,
-                        (class_id, label_node),
-                        metadata,
-                        Default::default(),
-                    )?;
-
-                    if let Some(origin) = RuntimeOrigin::<T>::get(node) {
-                        match origin {
-                            DomainTracing::RuntimeOrigin(origin) => {
-                                T::Registrar::check_expires_useable(origin)?;
-
-                                Self::add_children_with_check(origin, class_id, capacity)?;
-
-                                Self::add_children(node, class_id)?;
-
-                                RuntimeOrigin::<T>::insert(
-                                    label_node,
-                                    DomainTracing::RuntimeOrigin(origin),
-                                );
-                            }
-                            DomainTracing::Root => {
-                                Self::add_children_with_check(node, class_id, capacity)?;
-
-                                RuntimeOrigin::<T>::insert(
-                                    label_node,
-                                    DomainTracing::RuntimeOrigin(node),
-                                );
-                            }
-                        }
-                    } else {
-                        Self::add_children(node, class_id)?;
-
-                        RuntimeOrigin::<T>::insert(label_node, DomainTracing::Root);
-                    }
-                }
-                Self::deposit_event(Event::<T>::TokenMinted {
-                    class_id,
-                    token_id: label_node,
-                    node,
-                    owner: to,
-                });
-
-                Ok(())
+                nft::Pallet::<T>::transfer(&from, &to, (class_id, label_node))?;
             } else {
-                Err(Error::<T>::NotExist.into())
+                do_payments(None)?;
+
+                nft::Pallet::<T>::mint(&to, (class_id, label_node), metadata, Default::default())?;
+
+                if let Some(origin) = RuntimeOrigin::<T>::get(node) {
+                    match origin {
+                        DomainTracing::RuntimeOrigin(origin) => {
+                            T::Registrar::check_expires_useable(origin)?;
+
+                            Self::add_children_with_check(origin, class_id, capacity)?;
+
+                            Self::add_children(node, class_id)?;
+
+                            RuntimeOrigin::<T>::insert(
+                                label_node,
+                                DomainTracing::RuntimeOrigin(origin),
+                            );
+                        }
+                        DomainTracing::Root => {
+                            Self::add_children_with_check(node, class_id, capacity)?;
+
+                            RuntimeOrigin::<T>::insert(
+                                label_node,
+                                DomainTracing::RuntimeOrigin(node),
+                            );
+                        }
+                    }
+                } else {
+                    Self::add_children(node, class_id)?;
+
+                    RuntimeOrigin::<T>::insert(label_node, DomainTracing::Root);
+                }
             }
+            Self::deposit_event(Event::<T>::TokenMinted {
+                class_id,
+                token_id: label_node,
+                node,
+                owner: to,
+            });
+
+            Ok(())
         }
         pub(crate) fn add_children(node: DomainHash, class_id: T::ClassId) -> DispatchResult {
             nft::Tokens::<T>::mutate(class_id, node, |data| -> DispatchResult {
-                if let Some(info) = data {
-                    let node_children = info.data.children;
-                    info.data.children = node_children + 1;
-                    Ok(())
-                } else {
-                    Err(Error::<T>::NotExist.into())
-                }
+                let Some(info) = data else {
+                    return Err(Error::<T>::NotExist.into())
+                };
+
+                let node_children = info.data.children;
+                info.data.children = node_children + 1;
+                Ok(())
             })
         }
         fn add_children_with_check(
@@ -337,14 +330,13 @@ pub mod pallet {
             capacity: u32,
         ) -> DispatchResult {
             nft::Tokens::<T>::mutate(class_id, node, |data| -> DispatchResult {
-                if let Some(info) = data {
-                    let node_children = info.data.children;
-                    ensure!(node_children < capacity, Error::<T>::CapacityNotEnough);
-                    info.data.children = node_children + 1;
-                    Ok(())
-                } else {
-                    Err(Error::<T>::NotExist.into())
-                }
+                let Some(info) = data else {
+                    return Err(Error::<T>::NotExist.into())
+                };
+                let node_children = info.data.children;
+                ensure!(node_children < capacity, Error::<T>::CapacityNotEnough);
+                info.data.children = node_children + 1;
+                Ok(())
             })
         }
         /// Ensure `from` is a caller.
@@ -365,17 +357,17 @@ pub mod pallet {
 
             Self::verify_with_owner(from, token, &owner)?;
 
-            if let Some(origin) = RuntimeOrigin::<T>::get(token) {
-                match origin {
-                    DomainTracing::RuntimeOrigin(origin) => {
-                        T::Registrar::check_expires_renewable(origin)?;
-                    }
-                    DomainTracing::Root => {
-                        T::Registrar::check_expires_renewable(token)?;
-                    }
+            let Some(origin) = RuntimeOrigin::<T>::get(token) else {
+                return Err(Error::<T>::NotExist.into())
+            };
+
+            match origin {
+                DomainTracing::RuntimeOrigin(origin) => {
+                    T::Registrar::check_expires_renewable(origin)?;
                 }
-            } else {
-                return Err(Error::<T>::NotExist.into());
+                DomainTracing::Root => {
+                    T::Registrar::check_expires_renewable(token)?;
+                }
             }
 
             nft::Pallet::<T>::transfer(&owner, to, (class_id, token))?;
@@ -392,15 +384,15 @@ pub mod pallet {
 
         fn sub_children(node: DomainHash, class_id: T::ClassId) -> DispatchResult {
             nft::Tokens::<T>::mutate(class_id, node, |data| -> DispatchResult {
-                if let Some(info) = data {
-                    let node_children = info.data.children;
-                    info.data.children = node_children
-                        .checked_sub(1)
-                        .ok_or(sp_runtime::ArithmeticError::Overflow)?;
-                    Ok(())
-                } else {
-                    Err(Error::<T>::NotExist.into())
-                }
+                let Some(info) = data else {
+                    return  Err(Error::<T>::NotExist.into())
+                };
+
+                let node_children = info.data.children;
+                info.data.children = node_children
+                    .checked_sub(1)
+                    .ok_or(sp_runtime::ArithmeticError::Overflow)?;
+                Ok(())
             })
         }
     }
