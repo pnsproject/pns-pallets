@@ -16,6 +16,7 @@ pub mod pallet {
     use super::*;
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
+    use pns_types::ddns::codec_type::RecordType;
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
     use sp_runtime::traits::AtLeast32BitUnsigned;
@@ -101,6 +102,18 @@ pub mod pallet {
         ValueQuery,
     >;
 
+    /// ddns record
+    #[pallet::storage]
+    pub type Records<T: Config> = StorageDoubleMap<
+        _,
+        Twox64Concat,
+        pns_types::DomainHash,
+        Twox64Concat,
+        pns_types::ddns::codec_type::RecordType,
+        Content,
+        ValueQuery,
+    >;
+
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         /// vec![ `node` , `address` ]
@@ -144,6 +157,11 @@ pub mod pallet {
             kind: TextKind,
             content: Content,
         },
+        RecordsChanged {
+            node: pns_types::DomainHash,
+            kind: RecordType,
+            content: Content,
+        },
     }
 
     #[pallet::error]
@@ -177,6 +195,31 @@ pub mod pallet {
 
             Ok(())
         }
+        #[pallet::weight(T::WeightInfo::set_a_record(content.0.len() as u32))]
+        pub fn set_a_record(
+            origin: OriginFor<T>,
+            node: pns_types::DomainHash,
+            content: Content,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+
+            ensure!(
+                T::RegistryChecker::check_node_useable(node, &who),
+                Error::<T>::InvalidPermission
+            );
+
+            let kind = RecordType::A;
+
+            Records::<T>::insert(node, &kind, &content);
+
+            Self::deposit_event(Event::<T>::RecordsChanged {
+                node,
+                kind,
+                content,
+            });
+
+            Ok(())
+        }
         #[pallet::weight(T::WeightInfo::set_text(content.0.len() as u32))]
         pub fn set_text(
             origin: OriginFor<T>,
@@ -204,11 +247,15 @@ pub mod pallet {
     }
 }
 
-use frame_support::dispatch::Weight;
+use frame_support::{dispatch::Weight, IterableStorageDoubleMap};
+use pns_types::{ddns::codec_type::RecordType, DomainHash};
 use sp_std::vec::Vec;
 
 pub trait WeightInfo {
     fn set_text(content_len: u32) -> Weight;
+
+    fn set_a_record(content_len: u32) -> Weight;
+
     fn set_account() -> Weight;
 }
 
@@ -247,7 +294,19 @@ impl WeightInfo for () {
         Weight::zero()
     }
 
+    fn set_a_record(_content_len: u32) -> Weight {
+        Weight::zero()
+    }
+
     fn set_account() -> Weight {
         Weight::zero()
+    }
+}
+
+impl<C: Config> Pallet<C> {
+    pub fn lookup(id: DomainHash) -> Vec<(RecordType, Vec<u8>)> {
+        Records::<C>::iter_prefix(id)
+            .map(|(k2, v)| (k2, v.0))
+            .collect()
     }
 }

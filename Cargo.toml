@@ -25,3 +25,6 @@ pallet-aura = { default-features = false, git = "https://github.com/paritytech/s
 
 axum = "0.6"
 tracing = "0.1"
+trust-dns-proto = { default-features = false, version = "0.22.0" }
+trust-dns-server = { default-features = false, version = "0.22.0" }
+async-trait = "0.1.59"

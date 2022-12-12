@@ -3,7 +3,7 @@
 #![allow(clippy::unnecessary_mut_passed)]
 
 use codec::{Decode, Encode};
-use pns_types::{DomainHash, RegistrarInfo};
+use pns_types::{ddns::codec_type::RecordType, DomainHash, RegistrarInfo};
 use sp_runtime::traits::MaybeSerialize;
 
 sp_api::decl_runtime_apis! {
@@ -13,5 +13,6 @@ sp_api::decl_runtime_apis! {
     {
         fn get_info(id: DomainHash) -> Option<RegistrarInfo<Duration, Balance>>;
         fn all() -> sp_std::vec::Vec<(DomainHash,RegistrarInfo<Duration, Balance>)>;
+        fn lookup(id: DomainHash) -> sp_std::vec::Vec<(RecordType, sp_std::vec::Vec<u8>)>;
     }
 }

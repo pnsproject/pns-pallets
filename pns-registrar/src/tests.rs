@@ -67,9 +67,9 @@ fn register_test() {
 
         assert_eq!(gas_fee, 0);
 
-        let (label, len) = Label::new(name).unwrap();
+        let (label, len) = Label::new_with_len(name).unwrap();
 
-        let (label2, len2) = Label::new(name2).unwrap();
+        let (label2, len2) = Label::new_with_len(name2).unwrap();
 
         assert!(len == 11);
 
@@ -222,7 +222,7 @@ fn register_test() {
             registry::Error::<Test>::NoPermission
         );
 
-        let (test_label, _) = Label::new(b"test1").unwrap();
+        let (test_label, _) = Label::new_with_len(b"test1").unwrap();
         let test_node = test_label.encode_with_node(&node2);
 
         assert!(Nft::is_owner(&MONEY_ACCOUNT, (0, test_node)));
@@ -239,7 +239,7 @@ fn redeem_code_test() {
         ));
 
         let nouce = 0_u32;
-        let (label, _) = Label::new("cupnfish".as_bytes()).unwrap();
+        let (label, _) = Label::new_with_len("cupnfish".as_bytes()).unwrap();
         let label_node = label.node;
         let duration = MinRegistrationDuration::get();
 
@@ -377,7 +377,7 @@ fn redeem_code_test() {
             POOR_ACCOUNT
         ));
 
-        let test_node = Label::new("cupnfishxxx".as_bytes())
+        let test_node = Label::new_with_len("cupnfishxxx".as_bytes())
             .unwrap()
             .0
             .encode_with_node(&DOT_BASENODE);
@@ -396,7 +396,7 @@ fn resolvers_test() {
             MinRegistrationDuration::get()
         ));
 
-        let node = Label::new("cupnfishxxx".as_bytes())
+        let node = Label::new_with_len("cupnfishxxx".as_bytes())
             .unwrap()
             .0
             .encode_with_node(&DOT_BASENODE);
@@ -473,29 +473,32 @@ fn resolvers_test() {
 #[test]
 fn label_test() {
     // 中文 test
-    assert!(Label::new("中文域名暂不支持".as_bytes()).is_none());
+    assert!(Label::new_with_len("中文域名暂不支持".as_bytes()).is_none());
 
     // white space test
-    assert!(Label::new("hello world".as_bytes()).is_none());
+    assert!(Label::new_with_len("hello world".as_bytes()).is_none());
 
     // dot test
-    assert!(Label::new("hello.world".as_bytes()).is_none());
+    assert!(Label::new_with_len("hello.world".as_bytes()).is_none());
 
     // '-' test
-    assert!(Label::new("-hello".as_bytes()).is_none());
-    assert!(Label::new("he-llo".as_bytes()).is_none());
-    assert!(Label::new("he--llo".as_bytes()).is_none());
-    assert!(Label::new("hello-".as_bytes()).is_none());
+    assert!(Label::new_with_len("-hello".as_bytes()).is_none());
+    assert!(Label::new_with_len("he-llo".as_bytes()).is_none());
+    assert!(Label::new_with_len("he--llo".as_bytes()).is_none());
+    assert!(Label::new_with_len("hello-".as_bytes()).is_none());
 
     // normal label test
-    assert!(Label::new("hello".as_bytes()).is_some());
-    assert!(Label::new("111hello".as_bytes()).is_some());
-    assert!(Label::new("123455".as_bytes()).is_some());
-    assert!(Label::new("0x1241513".as_bytes()).is_some());
+    assert!(Label::new_with_len("hello".as_bytes()).is_some());
+    assert!(Label::new_with_len("111hello".as_bytes()).is_some());
+    assert!(Label::new_with_len("123455".as_bytes()).is_some());
+    assert!(Label::new_with_len("0x1241513".as_bytes()).is_some());
 
     // result test
     assert_eq!(
-        Label::new("dot".as_bytes()).unwrap().0.to_basenode(),
+        Label::new_with_len("dot".as_bytes())
+            .unwrap()
+            .0
+            .to_basenode(),
         DOT_BASENODE
     )
 }

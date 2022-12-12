@@ -182,7 +182,7 @@ pub mod pallet {
                 Error::<T>::RedeemsHasBeenUsed
             );
 
-            let (label, _) = Label::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
+            let (label, _) = Label::new_with_len(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             let label_node = label.node;
             let data = (label_node, duration, nouce).encode();
@@ -236,7 +236,8 @@ pub mod pallet {
                 Error::<T>::RedeemsHasBeenUsed
             );
 
-            let (label, label_len) = Label::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
+            let (label, label_len) =
+                Label::new_with_len(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             ensure!(label_len.is_registrable(), Error::<T>::LabelLenInvalid);
 

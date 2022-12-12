@@ -257,7 +257,8 @@ pub mod pallet {
                 Error::<T>::RegistryDurationInvalid
             );
 
-            let (label, label_len) = Label::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
+            let (label, label_len) =
+                Label::new_with_len(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             use crate::traits::Available;
 
@@ -355,7 +356,8 @@ pub mod pallet {
 
             ensure!(T::IsOpen::is_open(), Error::<T>::RegistrarClosed);
 
-            let (label, label_len) = Label::new(&name).ok_or(Error::<T>::ParseLabelFailed)?;
+            let (label, label_len) =
+                Label::new_with_len(&name).ok_or(Error::<T>::ParseLabelFailed)?;
 
             let label_node = label.encode_with_node(&T::BaseNode::get());
 
@@ -445,7 +447,7 @@ pub mod pallet {
             let capacity = RegistrarInfos::<T>::get(node)
                 .map(|info| info.capacity)
                 .unwrap_or_else(T::DefaultCapacity::get);
-            let (label, _) = Label::new(&data).ok_or(Error::<T>::ParseLabelFailed)?;
+            let (label, _) = Label::new_with_len(&data).ok_or(Error::<T>::ParseLabelFailed)?;
             let label_node = label.encode_with_node(&node);
             T::Registry::mint_subname(&caller, node, label_node, to.clone(), capacity, |_| Ok(()))?;
             Self::deposit_event(Event::<T>::SubnameRegistered {

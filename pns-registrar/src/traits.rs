@@ -108,7 +108,39 @@ pub const LABEL_MIN_LEN: usize = 3;
 pub const MIN_REGISTRABLE_LEN: usize = 10;
 
 impl Label {
-    pub fn new(data: &[u8]) -> Option<(Self, usize)> {
+    pub fn new(data: &[u8]) -> Option<Self> {
+        check_label(data)?;
+
+        let node = DomainHash::from(keccak_256(data));
+        Some(Self { node })
+    }
+    pub fn new_basenode(data: &[u8]) -> Option<Self> {
+        check_label(data)?;
+
+        let node = DomainHash::from(keccak_256(data));
+
+        let encoded = &(DomainHash::default(), node).encode();
+        let hash_encoded = keccak_256(encoded);
+
+        Some(Self {
+            node: DomainHash::from(hash_encoded),
+        })
+    }
+
+    pub fn encode_with_name(&self, data: &[u8]) -> Option<Self> {
+        let node = Self::new(data)?;
+        Some(Label {
+            node: self.encode_with_node(&node.node),
+        })
+    }
+
+    pub fn encode_with_basename(&self, data: &[u8]) -> Option<Self> {
+        let node = Self::new(data)?;
+        Some(Label {
+            node: self.encode_with_baselabel(&node.node),
+        })
+    }
+    pub fn new_with_len(data: &[u8]) -> Option<(Self, usize)> {
         check_label(data)?;
 
         let node = DomainHash::from(keccak_256(data));
