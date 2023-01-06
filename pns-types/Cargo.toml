@@ -15,8 +15,14 @@ serde = { optional = true, workspace = true }
 frame-support.workspace = true
 sp-api.workspace = true
 sp-core.workspace = true
-trust-dns-proto = { optional = true, workspace = true, features = ["serde-config"] }
+sp-std.workspace = true
+trust-dns-proto = { optional = true, workspace = true, features = ["serde-config", "dnssec"] }
+
+hashbrown = "0.12"
+
+thiserror = { version = "1", optional = true }
+
 
 [features]
 default = ['std']
-std = ['scale-info/std', 'serde', 'frame-support/std', 'sp-api/std', 'sp-core/std', 'trust-dns-proto']
+std = ['scale-info/std', 'serde', 'frame-support/std', 'sp-api/std', 'sp-core/std', 'trust-dns-proto', 'thiserror', 'hashbrown/serde']

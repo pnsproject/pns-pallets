@@ -16,7 +16,7 @@ pub mod pallet {
     use super::*;
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
-    use pns_types::ddns::codec_type::RecordType;
+    use pns_types::ddns::codec_type::{RData, RecordType};
     use scale_info::TypeInfo;
     use serde::{Deserialize, Serialize};
     use sp_runtime::traits::AtLeast32BitUnsigned;
@@ -110,7 +110,7 @@ pub mod pallet {
         pns_types::DomainHash,
         Twox64Concat,
         pns_types::ddns::codec_type::RecordType,
-        Content,
+        pns_types::ddns::codec_type::RData,
         ValueQuery,
     >;
 
@@ -160,7 +160,7 @@ pub mod pallet {
         RecordsChanged {
             node: pns_types::DomainHash,
             kind: RecordType,
-            content: Content,
+            rdata: RData,
         },
     }
 
@@ -195,11 +195,11 @@ pub mod pallet {
 
             Ok(())
         }
-        #[pallet::weight(T::WeightInfo::set_a_record(content.0.len() as u32))]
-        pub fn set_a_record(
+        #[pallet::weight(T::WeightInfo::set_record(rdata.len()))]
+        pub fn set_record(
             origin: OriginFor<T>,
             node: pns_types::DomainHash,
-            content: Content,
+            rdata: RData,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
@@ -208,15 +208,11 @@ pub mod pallet {
                 Error::<T>::InvalidPermission
             );
 
-            let kind = RecordType::A;
+            let kind = rdata.kind();
 
-            Records::<T>::insert(node, &kind, &content);
+            Records::<T>::insert(node, &kind, &rdata);
 
-            Self::deposit_event(Event::<T>::RecordsChanged {
-                node,
-                kind,
-                content,
-            });
+            Self::deposit_event(Event::<T>::RecordsChanged { node, kind, rdata });
 
             Ok(())
         }
@@ -247,14 +243,14 @@ pub mod pallet {
     }
 }
 
-use frame_support::{dispatch::Weight, IterableStorageDoubleMap};
+use frame_support::dispatch::Weight;
 use pns_types::{ddns::codec_type::RecordType, DomainHash};
 use sp_std::vec::Vec;
 
 pub trait WeightInfo {
     fn set_text(content_len: u32) -> Weight;
 
-    fn set_a_record(content_len: u32) -> Weight;
+    fn set_record(content_len: u32) -> Weight;
 
     fn set_account() -> Weight;
 }

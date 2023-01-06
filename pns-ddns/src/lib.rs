@@ -28,84 +28,28 @@ use trust_dns_server::{
 
 pub struct ServerDeps<Client, Block, Config> {
     pub client: Arc<Client>,
-    pub socket: SocketAddr,
     _block: PhantomData<(Block, Config)>,
+}
+
+impl<Client, Block, Config> Clone for ServerDeps<Client, Block, Config> {
+    fn clone(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            _block: PhantomData::default(),
+        }
+    }
 }
 
 unsafe impl<Client, Block, Config> Send for ServerDeps<Client, Block, Config> where Client: Send {}
 unsafe impl<Client, Block, Config> Sync for ServerDeps<Client, Block, Config> where Client: Sync {}
 
-// unsafe impl Send for ServerDeps<(), (), ()> {}
-// unsafe impl Sync for ServerDeps<(), (), ()> {}
-
-// impl ServerDeps<(), (), ()> {
-//     pub async fn init_dns_server_test(self) {
-//         let zone_name = Name::from_str("dot").unwrap();
-//         let authority = BlockChainAuthority {
-//             origin: LowerName::from(&zone_name),
-//             zone_type: trust_dns_server::authority::ZoneType::Primary,
-//             inner: self,
-//         };
-
-//         let mut catalog: Catalog = Catalog::new();
-//         catalog.upsert(
-//             LowerName::from(&zone_name),
-//             Box::new(Arc::new(authority)) as Box<dyn AuthorityObject>,
-//         );
-
-//         let mut server = ServerFuture::new(catalog);
-
-//         let udp_socket = UdpSocket::bind(("127.0.0.1", 65353))
-//             .await
-//             .expect("bind udp socket failed.");
-//         server.register_socket(udp_socket);
-//         match server.block_until_done().await {
-//             Ok(()) => {
-//                 // we're exiting for some reason...
-//                 info!("Trust-DNS stopping");
-//             }
-//             Err(e) => {
-//                 error!("Trust-DNS has encountered an error: {e:?}");
-//                 panic!("error: {e:?}");
-//             }
-//         };
-//     }
-// }
-
 impl<Client, Block, Config> ServerDeps<Client, Block, Config> {
-    pub fn new(client: Arc<Client>, socket: impl Into<SocketAddr>) -> Self {
+    pub fn new(client: Arc<Client>) -> Self {
         Self {
             client,
-            socket: socket.into(),
             _block: PhantomData::default(),
         }
     }
-
-    pub fn test(client: Client) -> Self {
-        Self {
-            client: Arc::new(client),
-            socket: SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
-                8080,
-            ),
-            _block: PhantomData::default(),
-        }
-    }
-
-    // pub(crate) fn inner_lookup_test(&self, name: &Name) -> Vec<(RecordType, Vec<u8>)> {
-    //     let mut map = HashMap::new();
-    //     map.insert(
-    //         name_hash(&Name::from_str("cupnfishxxx.dot").unwrap()),
-    //         "198.18.4.152".as_bytes().to_vec(),
-    //     );
-
-    //     let id = name_hash(name);
-
-    //     map.get(&id)
-    //         .cloned()
-    //         .map(|res| vec![(RecordType::A, res)])
-    //         .unwrap_or_default()
-    // }
 }
 
 impl<Client, Block, Config> ServerDeps<Client, Block, Config>
@@ -118,8 +62,9 @@ where
     Client::Api: PnsStorageApi<Block, Config::Moment, BalanceOf<Config>>,
     Block: BlockT,
 {
-    pub async fn init_server(self) {
-        let Self { client, socket, .. } = self;
+    pub async fn init_server(self, socket: impl Into<SocketAddr>) {
+        let Self { client, .. } = self;
+        let socket = socket.into();
 
         let app = Router::new()
             .route("/get_info/:id", get(Self::get_info))
@@ -133,7 +78,7 @@ where
             .unwrap();
     }
 
-    pub async fn init_dns_server(self) {
+    pub async fn init_dns_server(self, port: u16) {
         let zone_name = Name::from_str("dot").unwrap();
         let authority = BlockChainAuthority {
             origin: LowerName::from(&zone_name),
@@ -149,7 +94,7 @@ where
 
         let mut server = ServerFuture::new(catalog);
 
-        let udp_socket = UdpSocket::bind(("127.0.0.1", 5353))
+        let udp_socket = UdpSocket::bind(("127.0.0.1", port))
             .await
             .expect("bind udp socket failed.");
         server.register_socket(udp_socket);

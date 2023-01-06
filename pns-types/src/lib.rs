@@ -37,3 +37,8 @@ pub struct Record {
 }
 
 pub type DomainHash = sp_core::H256;
+
+#[test]
+fn test() {
+    println!("hello")
+}

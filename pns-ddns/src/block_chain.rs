@@ -29,6 +29,25 @@ pub struct BlockChainAuthority<Client, Block, Config> {
     pub inner: ServerDeps<Client, Block, Config>,
 }
 
+impl<Client, Block, Config>  BlockChainAuthority<Client, Block, Config>
+where
+    Client: ProvideRuntimeApi<Block>,
+    Client: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError>,
+    Client: Send + Sync + 'static,
+    Config: pns_registrar::registrar::Config,
+    Client::Api: BlockBuilder<Block>,
+    Client::Api: PnsStorageApi<Block, Config::Moment, BalanceOf<Config>>,
+    Block: BlockT,
+{ 
+    fn inner_lookup(&self,name: &LowerName,record_type: RecordType,lookup_options: LookupOptions) -> Option<Arc<RecordSet>> {
+        let inner = &self.inner;
+        let all_res = inner.inner_lookup(name.borrow());
+        let a = all_res
+        .into_iter()
+        .filter_map(|(a,b)|)
+    }
+}
+
 #[async_trait::async_trait]
 impl<Client, Block, Config> Authority for BlockChainAuthority<Client, Block, Config>
 where
