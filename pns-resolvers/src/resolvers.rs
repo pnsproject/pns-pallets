@@ -247,7 +247,7 @@ pub mod pallet {
     }
 }
 
-use frame_support::{dispatch::Weight, IterableStorageDoubleMap};
+use frame_support::dispatch::Weight;
 use pns_types::{ddns::codec_type::RecordType, DomainHash};
 use sp_std::vec::Vec;
 

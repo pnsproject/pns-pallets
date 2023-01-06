@@ -19,13 +19,16 @@ pns-runtime-api = { path = "../pns-runtime-api", features = ['std'] }
 pns-registrar = { path = "../pns-registrar", features = ['std'] }
 
 serde_json = "1"
-trust-dns-server = { workspace = true }
+trust-dns-server = { workspace = true, features = ["dns-over-rustls"] }
 async-trait.workspace = true
-tokio = { version = "1", default-features = false, features = ['net', 'rt', 'macros'] }
+tokio = { version = "1", default-features = false, features = [
+    'net',
+    'rt',
+    'macros',
+] }
+bincode = { version = "2.0.0-rc.2", features = ["serde"] }
+futures-util = "0.3"
 
 [dev-dependencies]
 tracing-subscriber = "0.2"
 
-[features]
-default = []
-dnssec = ['trust-dns-server/dnssec']

@@ -19,6 +19,9 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use tokio::net::UdpSocket;
 use tracing::{error, info};
+use trust_dns_server::authority::LookupError;
+use trust_dns_server::proto::op::ResponseCode;
+use trust_dns_server::proto::rr::RData;
 use trust_dns_server::{
     authority::{AuthorityObject, Catalog},
     client::rr::LowerName,
@@ -186,20 +189,35 @@ where
         Json(res)
     }
 
-    pub(crate) fn inner_lookup(&self, name: &Name) -> Vec<(RecordType, Vec<u8>)> {
+    pub(crate) fn inner_lookup(
+        &self,
+        name: &Name,
+    ) -> Result<Vec<(RecordType, RData)>, LookupError> {
         let at = self.client.info().best_hash;
         let api = self.client.runtime_api();
         let id = name_hash(name);
 
         match api.lookup(&BlockId::hash(at), id) {
-            Ok(res) => res
-                .into_iter()
-                .map(|(rt, v)| (RecordType::from(rt), v))
-                .collect(),
+            Ok(res) => {
+                let mut records = Vec::new();
+                for (raw_tp, v) in res.into_iter() {
+                    let rt = RecordType::from(raw_tp);
+                    let rdata = bincode::serde::decode_from_slice::<RData, _>(
+                        &v,
+                        bincode::config::legacy(),
+                    )
+                    .map_err(|_| LookupError::ResponseCode(ResponseCode::FormErr))?
+                    .0;
+                    records.push((rt, rdata));
+                }
+                Ok(records)
+            }
             Err(err) => {
-                // TODO: return error response
                 error!("lookup {name} failed: {err:?}");
-                Vec::with_capacity(0)
+                Err(LookupError::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    err,
+                )))
             }
         }
     }

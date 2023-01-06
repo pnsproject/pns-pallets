@@ -51,10 +51,13 @@ impl From<codec_type::RecordType> for RecordType {
 }
 
 pub mod codec_type {
+    use codec::MaxEncodedLen;
+    use scale_info::TypeInfo;
+
     use super::*;
 
     #[cfg_attr(feature = "std", derive(Deserialize, Serialize))]
-    #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Encode, Decode)]
+    #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
     #[allow(dead_code)]
     #[non_exhaustive]
     pub enum RecordType {
