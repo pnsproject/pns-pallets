@@ -206,9 +206,10 @@ where
         lookup_options: LookupOptions,
     ) -> Result<Self::Lookup, LookupError> {
         info!("in lookup.");
-        // if !self.origin.zone_of(name) {
-        //     return Err(LookupError::ResponseCode(ResponseCode::NotImp));
-        // }
+        if !self.origin.zone_of(name) {
+            info!("is not origin.");
+            return Err(LookupError::ResponseCode(ResponseCode::NotImp));
+        }
 
         let (result, additionals): (LookupResult<LookupRecords>, Option<LookupRecords>) =
             match rtype {
@@ -405,18 +406,21 @@ where
 #[test]
 fn name() {
     use core::str::FromStr;
-    use std::net::Ipv4Addr;
-
     use trust_dns_server::proto::rr::Name;
-    let name = Name::from_str("cupnfish.dot").unwrap();
-    println!("{name:?}");
-    let origin = Name::from_str("dot").unwrap();
-    println!("{}", origin.zone_of(&name));
 
-    let ip_bytes = "127.0.0.1".as_bytes();
-    println!("raw: {ip_bytes:?}",);
-    let rdata = RData::A(Ipv4Addr::from_str(core::str::from_utf8(ip_bytes).unwrap()).unwrap());
-    println!("rdata: {rdata:?}");
+    let baidu = Name::from_str("www.baidu.com").unwrap();
+    let record = RData::CNAME(baidu);
+    println!("{}", record.to_record_type());
+    let read = bincode::serde::encode_to_vec(record, bincode::config::legacy()).unwrap();
+    println!("{:?}", hex::encode(&read));
+    let raw_str = String::from_utf8_lossy(&read);
+    let baidu_str = "www.baidu.com";
+    println!("{:?}", hex::encode(baidu_str.as_bytes()));
+    println!("{raw_str}");
+    let decode = bincode::serde::decode_from_slice::<RData, _>(&read, bincode::config::legacy())
+        .unwrap()
+        .0;
+    println!("{}", decode.to_record_type())
 }
 
 // #[cfg(test)]

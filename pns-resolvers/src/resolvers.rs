@@ -195,10 +195,11 @@ pub mod pallet {
 
             Ok(())
         }
-        #[pallet::weight(T::WeightInfo::set_a_record(content.0.len() as u32))]
-        pub fn set_a_record(
+        #[pallet::weight(T::WeightInfo::set_record(content.0.len() as u32))]
+        pub fn set_record(
             origin: OriginFor<T>,
             node: pns_types::DomainHash,
+            record_type: RecordType,
             content: Content,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
@@ -208,13 +209,11 @@ pub mod pallet {
                 Error::<T>::InvalidPermission
             );
 
-            let kind = RecordType::A;
-
-            Records::<T>::insert(node, &kind, &content);
+            Records::<T>::insert(node, &record_type, &content);
 
             Self::deposit_event(Event::<T>::RecordsChanged {
                 node,
-                kind,
+                kind: record_type,
                 content,
             });
 
@@ -254,7 +253,7 @@ use sp_std::vec::Vec;
 pub trait WeightInfo {
     fn set_text(content_len: u32) -> Weight;
 
-    fn set_a_record(content_len: u32) -> Weight;
+    fn set_record(content_len: u32) -> Weight;
 
     fn set_account() -> Weight;
 }
@@ -294,7 +293,7 @@ impl WeightInfo for () {
         Weight::zero()
     }
 
-    fn set_a_record(_content_len: u32) -> Weight {
+    fn set_record(_content_len: u32) -> Weight {
         Weight::zero()
     }
 

@@ -18,7 +18,7 @@ use sp_api::{BlockId, BlockT, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use tokio::net::UdpSocket;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use trust_dns_server::authority::LookupError;
 use trust_dns_server::proto::op::ResponseCode;
 use trust_dns_server::proto::rr::RData;
@@ -33,6 +33,16 @@ pub struct ServerDeps<Client, Block, Config> {
     pub client: Arc<Client>,
     pub socket: SocketAddr,
     _block: PhantomData<(Block, Config)>,
+}
+
+impl<Client, Block, Config> Clone for ServerDeps<Client, Block, Config> {
+    fn clone(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            socket: self.socket.clone(),
+            _block: PhantomData::default(),
+        }
+    }
 }
 
 unsafe impl<Client, Block, Config> Send for ServerDeps<Client, Block, Config> where Client: Send {}
@@ -94,21 +104,6 @@ impl<Client, Block, Config> ServerDeps<Client, Block, Config> {
             _block: PhantomData::default(),
         }
     }
-
-    // pub(crate) fn inner_lookup_test(&self, name: &Name) -> Vec<(RecordType, Vec<u8>)> {
-    //     let mut map = HashMap::new();
-    //     map.insert(
-    //         name_hash(&Name::from_str("cupnfishxxx.dot").unwrap()),
-    //         "198.18.4.152".as_bytes().to_vec(),
-    //     );
-
-    //     let id = name_hash(name);
-
-    //     map.get(&id)
-    //         .cloned()
-    //         .map(|res| vec![(RecordType::A, res)])
-    //         .unwrap_or_default()
-    // }
 }
 
 impl<Client, Block, Config> ServerDeps<Client, Block, Config>
@@ -152,7 +147,7 @@ where
 
         let mut server = ServerFuture::new(catalog);
 
-        let udp_socket = UdpSocket::bind(("127.0.0.1", 5353))
+        let udp_socket = UdpSocket::bind(("127.0.0.1", 25353))
             .await
             .expect("bind udp socket failed.");
         server.register_socket(udp_socket);
@@ -266,8 +261,10 @@ where
 }
 
 fn name_hash(name: &Name) -> DomainHash {
+    error!("name_hash {name:?}");
     let mut iter = name.iter();
     let base = iter.next_back().expect("not found base label");
+    error!("base: {:?}", base);
     iter.fold(Option::<Label>::None, |init, label| {
         if let Some(init) = init {
             Some(init.encode_with_name(label).expect("new label failed."))
