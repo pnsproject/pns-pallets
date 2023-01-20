@@ -8,16 +8,21 @@ use sp_api::{BlockT, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use std::sync::Arc;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use trust_dns_server::{
     authority::{
         AnyRecords, AuthLookup, Authority, LookupError, LookupOptions, LookupRecords, LookupResult,
         MessageRequest, UpdateResult, ZoneType,
     },
-    client::rr::LowerName,
+    client::{
+        client::{Client, SyncClient},
+        op::DnsResponse,
+        rr::LowerName,
+        udp::UdpClientConnection,
+    },
     proto::{
         op::ResponseCode,
-        rr::{RData, Record, RecordSet, RecordType},
+        rr::{DNSClass, RData, Record, RecordSet, RecordType},
     },
     resolver::Name,
     server::RequestInfo,
@@ -27,6 +32,7 @@ use crate::ServerDeps;
 
 pub struct BlockChainAuthority<Client, Block, Config> {
     pub origin: LowerName,
+    pub root: LowerName,
     pub zone_type: ZoneType,
     pub inner: ServerDeps<Client, Block, Config>,
 }
@@ -47,8 +53,38 @@ where
         record_type: RecordType,
         lookup_options: LookupOptions,
     ) -> Option<Arc<RecordSet>> {
-        let inner = &self.inner;
-        let all_res = inner.inner_lookup(name.borrow()).ok()?;
+        info!("in inner lookup. {name} {record_type:?}");
+        let all_res = if !self.origin.zone_of(name) && !name.is_root() && !name.is_wildcard() {
+            let name = name.clone();
+            error!("lookup udp server. {name}");
+            let res = std::thread::spawn(move || {
+                let address = "8.8.8.8:53".parse().ok()?;
+                let conn = UdpClientConnection::new(address).ok()?;
+
+                // and then create the Client
+                let client = SyncClient::new(conn);
+                let mut response: DnsResponse = client
+                    .query(name.borrow(), DNSClass::IN, RecordType::ANY)
+                    .ok()?;
+
+                let ans = response.take_answers();
+                return Some(
+                    ans.into_iter()
+                        .filter_map(|record| record.into_data())
+                        .map(|data| (data.to_record_type(), data))
+                        .collect::<Vec<_>>(),
+                );
+            });
+            error!("lookup udp server.");
+            let all_res = res.join().ok()??;
+            all_res
+        } else {
+            let inner = &self.inner;
+            let all_res = inner.inner_lookup(name.borrow()).ok()?;
+            all_res
+        };
+
+        info!("all_res: {all_res:?}");
         let lookup = all_res
             .into_iter()
             .find(|(key_type, _)| is_need_type(*key_type, record_type))
@@ -62,6 +98,8 @@ where
                     set
                 })
             });
+
+        info!("lookup res {lookup:?}");
         // TODO: maybe unwrap this recursion.
         match lookup {
             None => self.inner_lookup_wildcard(name, record_type, lookup_options),
@@ -75,6 +113,8 @@ where
         record_type: RecordType,
         lookup_options: LookupOptions,
     ) -> Option<Arc<RecordSet>> {
+        info!("in inner lookup wildcard. {name} {record_type:?}");
+
         // if this is a wildcard or a root, both should break continued lookups
         let wildcard = if name.is_wildcard() || name.is_root() {
             return None;
@@ -117,6 +157,8 @@ where
         _search_type: RecordType,
         lookup_options: LookupOptions,
     ) -> Option<Vec<Arc<RecordSet>>> {
+        info!("in additional_search.");
+
         let mut additionals: Vec<Arc<RecordSet>> = vec![];
 
         // if it's a CNAME or other forwarding record, we'll be adding additional records based on the query_type
@@ -205,18 +247,13 @@ where
         rtype: RecordType,
         lookup_options: LookupOptions,
     ) -> Result<Self::Lookup, LookupError> {
-        info!("in lookup.");
-        if !self.origin.zone_of(name) {
-            info!("is not origin.");
-            return Err(LookupError::ResponseCode(ResponseCode::NotImp));
-        }
-
+        info!("in lookup. {name} {rtype:?}");
         let (result, additionals): (LookupResult<LookupRecords>, Option<LookupRecords>) =
             match rtype {
                 RecordType::AXFR | RecordType::ANY => {
                     let inner = &self.inner;
                     let res = inner.inner_lookup(name.borrow())?;
-
+                    info!("any res: {res:?}");
                     let rrset = res
                         .into_iter()
                         .map(|(tp, rdata)| {
@@ -234,9 +271,10 @@ where
                     (Ok(LookupRecords::AnyRecords(result)), None)
                 }
                 _ => {
+                    info!("perform lookup");
                     // perform the lookup
                     let answer = self.inner_lookup(name, rtype, lookup_options);
-
+                    info!("self answer {answer:?}");
                     // evaluate any cnames for additional inclusion
                     let additionals_root_chain_type: Option<(_, _)> = answer
                         .as_ref()
@@ -345,16 +383,17 @@ where
         request_info: RequestInfo<'_>,
         lookup_options: LookupOptions,
     ) -> Result<Self::Lookup, LookupError> {
-        debug!("searching BlockChainAuthority for: {}", request_info.query);
+        error!("searching BlockChainAuthority for: {}", request_info.query);
         let name = request_info.query.name();
         let rtype: RecordType = request_info.query.query_type();
-        debug!("{name:?} {rtype:?}");
+        error!("{name:?} {rtype:?}");
 
         // if this is an AXFR zone transfer, verify that this is either the Secondary or Primary
         //  for AXFR the first and last record must be the SOA
         if RecordType::AXFR == rtype {
             // TODO: support more advanced AXFR options
             if !self.is_axfr_allowed() {
+                error!("refused");
                 return Err(LookupError::from(ResponseCode::Refused));
             }
 
@@ -370,6 +409,7 @@ where
         match rtype {
             RecordType::SOA => self.lookup(self.origin(), rtype, lookup_options).await,
             RecordType::AXFR => {
+                info!("axfr");
                 // TODO: shouldn't these SOA's be secure? at least the first, perhaps not the last?
                 let lookup = future::try_join3(
                     // TODO: maybe switch this to be an soa_inner type call?
@@ -389,7 +429,10 @@ where
                 lookup.await
             }
             // A standard Lookup path
-            _ => self.lookup(name, rtype, lookup_options).await,
+            _ => {
+                info!("search to lookup");
+                self.lookup(name, rtype, lookup_options).await
+            }
         }
     }
 
@@ -406,21 +449,61 @@ where
 #[test]
 fn name() {
     use core::str::FromStr;
+    use std::net::Ipv4Addr;
     use trust_dns_server::proto::rr::Name;
 
     let baidu = Name::from_str("www.baidu.com").unwrap();
-    let record = RData::CNAME(baidu);
+    let record = RData::ANAME(baidu);
     println!("{}", record.to_record_type());
+    let read = bincode::serde::encode_to_vec(record.clone(), bincode::config::legacy()).unwrap();
+    println!("0x{}", hex::encode(&read));
+    let decode = bincode::serde::decode_from_slice::<RData, _>(&read, bincode::config::legacy())
+        .unwrap()
+        .0;
+    assert_eq!(decode, record);
+    println!("{}", decode.to_record_type());
+
+    let record = RData::A(Ipv4Addr::new(192, 1, 1, 3));
     let read = bincode::serde::encode_to_vec(record, bincode::config::legacy()).unwrap();
-    println!("{:?}", hex::encode(&read));
+    println!("0x{}", hex::encode(&read));
+
     let raw_str = String::from_utf8_lossy(&read);
     let baidu_str = "www.baidu.com";
-    println!("{:?}", hex::encode(baidu_str.as_bytes()));
+    println!("0x{}", hex::encode(baidu_str.as_bytes()));
     println!("{raw_str}");
     let decode = bincode::serde::decode_from_slice::<RData, _>(&read, bincode::config::legacy())
         .unwrap()
         .0;
     println!("{}", decode.to_record_type())
+}
+
+#[cfg(test)]
+#[test]
+fn client_search() {
+    use core::str::FromStr;
+
+    use trust_dns_server::proto::rr::Name;
+    let name = Name::from_str("www.baidu.com").unwrap();
+    let address = "8.8.8.8:53".parse().unwrap();
+    let conn = UdpClientConnection::new(address).unwrap();
+
+    // and then create the Client
+    let client = SyncClient::new(conn);
+    let mut response: DnsResponse = client
+        .query(name.borrow(), DNSClass::IN, RecordType::ANY)
+        .unwrap();
+    println!("{response:?}");
+
+    let ans = response.take_answers();
+    let res = ans
+        .into_iter()
+        .filter_map(|record| record.into_data())
+        .map(|data| {
+            let tp = data.to_record_type();
+            (data, tp)
+        })
+        .collect::<Vec<_>>();
+    println!("{res:?}");
 }
 
 // #[cfg(test)]

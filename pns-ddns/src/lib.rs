@@ -18,7 +18,7 @@ use sp_api::{BlockId, BlockT, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use tokio::net::UdpSocket;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use trust_dns_server::authority::LookupError;
 use trust_dns_server::proto::op::ResponseCode;
 use trust_dns_server::proto::rr::RData;
@@ -135,6 +135,7 @@ where
         let zone_name = Name::from_str("dot").unwrap();
         let authority = BlockChainAuthority {
             origin: LowerName::from(&zone_name),
+            root: Name::root().into(),
             zone_type: trust_dns_server::authority::ZoneType::Primary,
             inner: self,
         };
@@ -190,21 +191,24 @@ where
     ) -> Result<Vec<(RecordType, RData)>, LookupError> {
         let at = self.client.info().best_hash;
         let api = self.client.runtime_api();
-        let id = name_hash(name);
-
+        let id = name_hash(name).ok_or(LookupError::ResponseCode(ResponseCode::NoError))?;
+        info!("namehash: {id:?}");
         match api.lookup(&BlockId::hash(at), id) {
             Ok(res) => {
                 let mut records = Vec::new();
                 for (raw_tp, v) in res.into_iter() {
                     let rt = RecordType::from(raw_tp);
+                    info!("will serde rdata");
                     let rdata = bincode::serde::decode_from_slice::<RData, _>(
                         &v,
                         bincode::config::legacy(),
                     )
                     .map_err(|_| LookupError::ResponseCode(ResponseCode::FormErr))?
                     .0;
+                    info!("serde rdata well");
                     records.push((rt, rdata));
                 }
+                info!("inner inner_lookup res: {records:?}");
                 Ok(records)
             }
             Err(err) => {
@@ -260,22 +264,24 @@ where
     }
 }
 
-fn name_hash(name: &Name) -> DomainHash {
+fn name_hash(name: &Name) -> Option<DomainHash> {
     error!("name_hash {name:?}");
     let mut iter = name.iter();
-    let base = iter.next_back().expect("not found base label");
+    let base = iter.next_back()?;
     error!("base: {:?}", base);
-    iter.fold(Option::<Label>::None, |init, label| {
-        if let Some(init) = init {
-            Some(init.encode_with_name(label).expect("new label failed."))
-        } else {
-            Some(
-                // TODO: handle error
-                Label::new(label).expect("new label failed."),
-            )
-        }
-    })
-    .and_then(|label| label.encode_with_basename(base))
-    .unwrap_or(Label::new_basenode(base).expect("new basenode faield."))
-    .node
+    Some(
+        iter.fold(Option::<Label>::None, |init, label| {
+            if let Some(init) = init {
+                Some(init.encode_with_name(label)?)
+            } else {
+                Some(
+                    // TODO: handle error
+                    Label::new(label)?,
+                )
+            }
+        })
+        .and_then(|label| label.encode_with_basename(base))
+        .unwrap_or(Label::new_basenode(base)?)
+        .node,
+    )
 }
