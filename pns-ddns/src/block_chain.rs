@@ -1,12 +1,12 @@
 use core::borrow::Borrow;
-use std::collections::HashSet;
-
 use futures_util::{future, TryFutureExt};
 use pns_registrar::registrar::BalanceOf;
 use pns_runtime_api::PnsStorageApi;
+use sc_client_api::backend::Backend as BackendT;
 use sp_api::{BlockT, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
+use std::collections::HashSet;
 use std::sync::Arc;
 use tracing::{error, info};
 use trust_dns_server::{
@@ -30,22 +30,29 @@ use trust_dns_server::{
 
 use crate::ServerDeps;
 
-pub struct BlockChainAuthority<Client, Block, Config> {
+pub struct BlockChainAuthority<Client, Backend, Block, Config> {
     pub origin: LowerName,
     pub root: LowerName,
     pub zone_type: ZoneType,
-    pub inner: ServerDeps<Client, Block, Config>,
+    pub inner: ServerDeps<Client, Backend, Block, Config>,
 }
 
-impl<Client, Block, Config> BlockChainAuthority<Client, Block, Config>
+impl<Client, Backend, Block, Config> BlockChainAuthority<Client, Backend, Block, Config>
 where
     Client: ProvideRuntimeApi<Block>,
     Client: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError>,
     Client: Send + Sync + 'static,
-    Config: pns_registrar::registrar::Config,
+    Config: pns_registrar::registrar::Config + pns_resolvers::resolvers::Config,
+    Client::Api: PnsStorageApi<
+        Block,
+        Config::Moment,
+        BalanceOf<Config>,
+        Config::Signature,
+        Config::AccountId,
+    >,
     Client::Api: BlockBuilder<Block>,
-    Client::Api: PnsStorageApi<Block, Config::Moment, BalanceOf<Config>>,
     Block: BlockT,
+    Backend: BackendT<Block> + 'static,
 {
     fn inner_lookup(
         &self,
@@ -213,15 +220,23 @@ where
 }
 
 #[async_trait::async_trait]
-impl<Client, Block, Config> Authority for BlockChainAuthority<Client, Block, Config>
+impl<Client, Backend, Block, Config> Authority
+    for BlockChainAuthority<Client, Backend, Block, Config>
 where
     Client: ProvideRuntimeApi<Block>,
     Client: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError>,
     Client: Send + Sync + 'static,
-    Config: pns_registrar::registrar::Config,
+    Config: pns_registrar::registrar::Config + pns_resolvers::resolvers::Config,
+    Client::Api: PnsStorageApi<
+        Block,
+        Config::Moment,
+        BalanceOf<Config>,
+        Config::Signature,
+        Config::AccountId,
+    >,
     Client::Api: BlockBuilder<Block>,
-    Client::Api: PnsStorageApi<Block, Config::Moment, BalanceOf<Config>>,
     Block: BlockT,
+    Backend: BackendT<Block> + 'static,
 {
     type Lookup = AuthLookup;
 
