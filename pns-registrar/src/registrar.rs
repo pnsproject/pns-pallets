@@ -212,6 +212,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Add a domain from the reserved list
         /// Only root
+        #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::add_reserved())]
         pub fn add_reserved(origin: OriginFor<T>, node: DomainHash) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
@@ -223,6 +224,7 @@ pub mod pallet {
         }
         /// Remove a domain from the reserved list
         /// Only root
+        #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::remove_reserved())]
         pub fn remove_reserved(origin: OriginFor<T>, node: DomainHash) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
@@ -239,6 +241,7 @@ pub mod pallet {
         /// registering domain names greater than 10 in length.
         ///
         /// Ensure: The name must be unoccupied.
+        #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::register(name.len() as u32))]
         #[frame_support::transactional]
         pub fn register(
@@ -349,6 +352,7 @@ pub mod pallet {
         ///  the domain and that user at renewal time, as it is the caller's responsibility to pay.
         ///
         /// Ensure: Name is within the renewable period.
+        #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::renew(name.len() as u32))]
         #[frame_support::transactional]
         pub fn renew(origin: OriginFor<T>, name: Vec<u8>, duration: T::Moment) -> DispatchResult {
@@ -402,6 +406,7 @@ pub mod pallet {
         /// i.e. the deposit of the domain name traded out will have nothing to do with you.
         ///
         /// Ensure: The front-end should remind the user of the notes.
+        #[pallet::call_index(4)]
         #[pallet::weight(T::WeightInfo::transfer())]
         #[frame_support::transactional]
         pub fn transfer(
@@ -431,6 +436,7 @@ pub mod pallet {
         /// quota of your total subdomains.
         ///
         /// Ensure: The subdomain capacity is sufficient for use.
+        #[pallet::call_index(5)]
         #[pallet::weight(T::WeightInfo::mint_subname(data.len() as u32))]
         #[frame_support::transactional]
         pub fn mint_subname(

@@ -1,86 +1,114 @@
 mod block_chain;
+mod builder;
+mod network;
 mod offchain;
 
 use core::{marker::PhantomData, str::FromStr};
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Mutex, time::Duration};
 
 use std::sync::Arc;
 
-use axum::routing::get;
+pub use crate::builder::{build_network, DdnsNetworkParams};
+pub use crate::network::{DdnsNetworkManager, DdnsReuqestHandler};
+pub use crate::offchain::{from_backend, OffChain};
 use axum::{
     extract::{Path, State},
-    routing::post,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+    Json, Router,
 };
-use axum::{http::StatusCode, response::IntoResponse};
-use axum::{Json, Router};
 use block_chain::BlockChainAuthority;
-use pns_registrar::registrar::BalanceOf;
-use pns_registrar::traits::Label;
+use libp2p::PeerId;
+use network::Message;
+use pns_registrar::{registrar::BalanceOf, traits::Label};
 use pns_runtime_api::PnsStorageApi;
 use pns_types::DomainHash;
 use sc_client_api::backend::Backend as BackendT;
+use sc_network::NetworkRequest;
+use sc_service::SpawnTaskHandle;
 use sp_api::{BlockId, BlockT, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_core::Pair;
 use tokio::net::UdpSocket;
-use tracing::{error, info};
-use trust_dns_server::authority::LookupError;
-use trust_dns_server::proto::op::ResponseCode;
-pub use trust_dns_server::proto::rr::Name;
-pub use trust_dns_server::proto::rr::RData;
+use tracing::{error, info, warn};
+
+pub use trust_dns_server::proto::rr::{Name, RData};
 use trust_dns_server::{
-    authority::{AuthorityObject, Catalog},
+    authority::{AuthorityObject, Catalog, LookupError},
     client::rr::LowerName,
-    proto::rr::RecordType,
+    proto::{op::ResponseCode, rr::RecordType},
     ServerFuture,
 };
 
-pub struct ServerDeps<Client, Backend, Block, Config> {
+pub struct ServerDeps<Client, Backend, Block, Config>
+where
+    Block: BlockT,
+    Backend: BackendT<Block>,
+{
     pub client: Arc<Client>,
     pub backend: Arc<Backend>,
-    pub socket: SocketAddr,
+    pub offchain_db: Arc<Mutex<OffChain<<Backend as BackendT<Block>>::OffchainStorage>>>,
+    pub manager: DdnsNetworkManager,
+    pub network: Arc<sc_network::NetworkService<Block, <Block as BlockT>::Hash>>,
+    pub spawn_handle: SpawnTaskHandle,
     _block: PhantomData<(Block, Config)>,
 }
 
-impl<Client, Backend, Block, Config> Clone for ServerDeps<Client, Backend, Block, Config> {
+impl<Client, Backend, Block, Config> Clone for ServerDeps<Client, Backend, Block, Config>
+where
+    Block: BlockT,
+    Backend: BackendT<Block>,
+{
     fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
             backend: self.backend.clone(),
-            socket: self.socket.clone(),
+            manager: self.manager.clone(),
+            network: self.network.clone(),
+            spawn_handle: self.spawn_handle.clone(),
             _block: PhantomData::default(),
+            offchain_db: self.offchain_db.clone(),
         }
     }
 }
 
-unsafe impl<Client, Backend, Block, Config> Send for ServerDeps<Client, Backend, Block, Config> where
-    Client: Send
+unsafe impl<Client, Backend, Block, Config> Send for ServerDeps<Client, Backend, Block, Config>
+where
+    Client: Send,
+    Block: BlockT,
+    Backend: BackendT<Block>,
 {
 }
-unsafe impl<Client, Backend, Block, Config> Sync for ServerDeps<Client, Backend, Block, Config> where
-    Client: Sync
+unsafe impl<Client, Backend, Block, Config> Sync for ServerDeps<Client, Backend, Block, Config>
+where
+    Client: Sync,
+    Block: BlockT,
+    Backend: BackendT<Block>,
 {
 }
 
-impl<Client, Backend, Block, Config> ServerDeps<Client, Backend, Block, Config> {
-    pub fn new(client: Arc<Client>, backend: Arc<Backend>, socket: impl Into<SocketAddr>) -> Self {
+impl<Client, Backend, Block, Config> ServerDeps<Client, Backend, Block, Config>
+where
+    Block: BlockT,
+    Backend: BackendT<Block>,
+{
+    pub fn new(
+        client: Arc<Client>,
+        backend: Arc<Backend>,
+        manager: DdnsNetworkManager,
+        network: Arc<sc_network::NetworkService<Block, <Block as BlockT>::Hash>>,
+        offchain_db: Arc<Mutex<OffChain<<Backend as BackendT<Block>>::OffchainStorage>>>,
+        spawn_handle: SpawnTaskHandle,
+    ) -> Self {
         Self {
             client,
+            offchain_db,
             backend,
-            socket: socket.into(),
-            _block: PhantomData::default(),
-        }
-    }
-
-    pub fn test(client: Client, backend: Backend) -> Self {
-        Self {
-            client: Arc::new(client),
-            backend: Arc::new(backend),
-            socket: SocketAddr::new(
-                std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
-                8080,
-            ),
+            manager,
+            spawn_handle,
+            network,
             _block: PhantomData::default(),
         }
     }
@@ -103,20 +131,15 @@ where
     Block: BlockT,
     Backend: BackendT<Block> + 'static,
 {
-    pub async fn init_server(self) {
-        let Self {
-            client,
-            socket,
-            backend,
-            ..
-        } = self;
+    pub async fn init_server(self, socket: impl Into<SocketAddr>) {
+        let socket = socket.into();
 
         let app = Router::new()
             .route("/get_info/:id", get(Self::get_info))
             .route("/info/:name", get(Self::get_info_from_name))
             .route("/set_record/:data", post(Self::set_record))
             .route("/all", get(Self::all))
-            .with_state(DdnsState { client, backend });
+            .with_state(self);
 
         axum::Server::bind(&socket)
             .serve(app.into_make_service())
@@ -158,7 +181,7 @@ where
     }
 
     async fn set_record(
-        State(state): State<DdnsState<Client, Backend>>,
+        State(state): State<Self>,
         Path(hex_data): Path<String>,
     ) -> impl IntoResponse {
         let Ok(bytes) = hex::decode(&hex_data) else {
@@ -191,20 +214,43 @@ where
             }
         };
 
-        let res = offchain::OffChain::set_with_signature::<Config, _>(
-            who, code, id, tp, content, checker,
-        );
+        // offchain:
+        let mut guard = state.offchain_db.lock().expect("db lock error");
 
-        if !res {
+        if let Some((k, v)) =
+            guard.set_with_signature::<Config, _>(who, code, id, tp, content, checker)
+        {
+            if let Ok(peers) = state.manager.peers.lock() {
+                let msg = Message::Set {
+                    k,
+                    v,
+                    timestamp: chrono::Utc::now().timestamp(),
+                };
+                if let Ok(request) = msg.encode() {
+                    let spawn_handle = state.spawn_handle;
+                    let network = state.network;
+
+                    for peer in peers.iter().cloned() {
+                        spawn_handle.spawn(
+                            "ddns_handle_peer",
+                            Some("ddns"),
+                            gen_task(network.clone(), request.clone(), peer),
+                        );
+                    }
+                } else {
+                    tracing::error!(target: "offchain_worker", "Failed to encode message");
+                }
+            } else {
+                tracing::error!(target: "offchain_worker", "Failed to lock storage");
+            }
+        } else {
             tracing::info!("set id: {id:?} falied.");
+            return (StatusCode::ACCEPTED, Json(false));
         }
 
-        (StatusCode::ACCEPTED, Json(res))
+        (StatusCode::ACCEPTED, Json(true))
     }
-    async fn get_info(
-        State(state): State<DdnsState<Client, Backend>>,
-        Path(id): Path<DomainHash>,
-    ) -> impl IntoResponse {
+    async fn get_info(State(state): State<Self>, Path(id): Path<DomainHash>) -> impl IntoResponse {
         let client = state.client;
         let at = client.info().best_hash;
         let api = client.runtime_api();
@@ -233,7 +279,10 @@ where
         info!("namehash: {id:?}");
         match api.lookup(&BlockId::hash(at), id) {
             Ok(mut onchain) => {
-                let mut offchain = offchain::OffChain::get::<Config>(id);
+                // offchain:
+                let mut guard = self.offchain_db.lock().expect("db lock error");
+                let mut offchain = guard.get::<Config>(id);
+
                 onchain.append(&mut offchain);
                 let mut records = Vec::new();
                 for (raw_tp, v) in onchain.into_iter() {
@@ -262,7 +311,7 @@ where
     }
 
     async fn get_info_from_name(
-        State(state): State<DdnsState<Client, Backend>>,
+        State(state): State<Self>,
         Path(name): Path<String>,
     ) -> impl IntoResponse {
         let client = state.client;
@@ -290,7 +339,7 @@ where
         Json(res)
     }
 
-    async fn all(State(state): State<DdnsState<Client, Backend>>) -> impl IntoResponse {
+    async fn all(State(state): State<Self>) -> impl IntoResponse {
         let client = state.client;
         let at = client.info().best_hash;
         let api = client.runtime_api();
@@ -389,16 +438,67 @@ where
     }
 }
 
-pub struct DdnsState<Client, Backend> {
-    pub client: Arc<Client>,
-    pub backend: Arc<Backend>,
+async fn gen_task<Block: BlockT>(
+    network: Arc<sc_network::NetworkService<Block, <Block as BlockT>::Hash>>,
+    request: Vec<u8>,
+    peer: libp2p::PeerId,
+) {
+    if let Err(e) = network
+        .request(
+            peer,
+            sc_network::ProtocolName::from(network::PROTOCOL_NAME),
+            request,
+            sc_network::IfDisconnected::ImmediateError,
+        )
+        .await
+    {
+        error!("{e:?}");
+    }
 }
 
-impl<Client, Backend> Clone for DdnsState<Client, Backend> {
-    fn clone(&self) -> Self {
-        Self {
-            client: self.client.clone(),
-            backend: self.backend.clone(),
+pub async fn init_ddns<TBl>(
+    manager: DdnsNetworkManager,
+    network: Arc<sc_network::NetworkService<TBl, <TBl as BlockT>::Hash>>,
+) where
+    TBl: BlockT,
+{
+    let request = Message::Init.encode().expect("message encode failed");
+
+    tokio::time::sleep(Duration::from_secs(20)).await;
+
+    if let Ok(state) = network.network_state().await {
+        let peers = state.connected_peers;
+        for (peer_raw, _) in peers.iter() {
+            let peer = PeerId::from_str(peer_raw).expect("peerid from str failed");
+            match network
+                .request(
+                    peer,
+                    sc_network::ProtocolName::from(network::PROTOCOL_NAME),
+                    request.clone(),
+                    sc_network::IfDisconnected::ImmediateError,
+                )
+                .await
+            {
+                Ok(response) => {
+                    match bincode::serde::decode_from_slice::<Vec<PeerId>, _>(
+                        &response,
+                        bincode::config::standard(),
+                    ) {
+                        Ok((list, _)) => {
+                            let mut lock =
+                                manager.peers.lock().expect("ddns manager lock poisoned");
+                            lock.extend(list);
+                        }
+                        Err(e) => {
+                            error!("{e}");
+                            continue;
+                        }
+                    };
+                }
+                Err(e) => error!("ddns init failed: {e}"),
+            }
         }
+    } else {
+        warn!("get connected_peers falied")
     }
 }

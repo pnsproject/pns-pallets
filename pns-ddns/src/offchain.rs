@@ -1,25 +1,70 @@
 use pns_resolvers::resolvers::Config;
 use pns_types::{ddns::codec_type::RecordType, DomainHash};
-use redb::{Database, ReadableTable, TableDefinition};
-use sp_api::Encode;
+use sc_client_api::backend::Backend as BackendT;
+use sp_api::{
+    offchain::{DbExternalities, OffchainStorage},
+    Encode,
+};
 use tracing::debug;
 
-const DDNS_TABLE: TableDefinition<&[u8], &[u8]> = TableDefinition::new("ddns");
+pub struct OffChain<Storage> {
+    pub db: PersistentOffchainDb<Storage>,
+}
 
-const FILE: &str = "ddns.redb";
+impl<Storage: OffchainStorage> OffChain<Storage> {
+    pub fn get<T: Config>(&mut self, id: DomainHash) -> Vec<(RecordType, Vec<u8>)> {
+        self.db.get::<T>(id)
+    }
 
-pub struct OffChain;
+    pub fn set(&mut self, k: &[u8], v: &[u8], _timestamp: i64) {
+        // TODO: check timestamp
+        self.db.set(k, v);
+    }
 
-impl OffChain {
+    pub fn set_with_signature<
+        T: Config,
+        Checker: Send + Sync + FnOnce(pns_types::DomainHash, &T::AccountId) -> bool,
+    >(
+        &mut self,
+        who: T::AccountId,
+        code: T::Signature,
+        id: DomainHash,
+        tp: RecordType,
+        content: Vec<u8>,
+        check_node_useable: Checker,
+    ) -> Option<(Vec<u8>, Vec<u8>)> {
+        debug!(
+            "{who:?} will set with signature: {code:?} id: {id:?} tp: {tp:?} content: {content:?}"
+        );
+        // TODO:
+        if check_node_useable(id, &who) {
+            let data = (id, tp, &content).encode();
+            use sp_runtime::traits::Verify;
+            if code.verify(&data[..], &who) {
+                let k = DataOperations::offchain_key_with_type::<T>(id, tp);
+                self.db.set(&k, &content);
+
+                return Some((k, content));
+            }
+        }
+        None
+    }
+}
+
+pub struct DataOperations;
+
+impl DataOperations {
+    #[inline]
     pub fn offchain_key<T: Config>(id: DomainHash) -> Vec<u8> {
         (<T as Config>::OFFCHAIN_PREFIX, id).encode()
     }
 
+    #[inline]
     pub fn offchain_key_with_type<T: Config>(id: DomainHash, tp: RecordType) -> Vec<u8> {
         let key = (<T as Config>::OFFCHAIN_PREFIX, id).encode();
         (key, tp).encode()
     }
-
+    #[inline]
     pub fn keys<T: Config>(id: DomainHash) -> Vec<(RecordType, Vec<u8>)> {
         let key = Self::offchain_key::<T>(id);
         RecordType::all()
@@ -30,82 +75,37 @@ impl OffChain {
             })
             .collect()
     }
+}
 
-    pub fn get<T: Config>(id: DomainHash) -> Vec<(RecordType, Vec<u8>)> {
-        let keys = Self::keys::<T>(id);
-        let db = Database::create(FILE).expect("create database failed.");
-        let read_txn = match db.begin_read() {
-            Ok(txn) => txn,
-            Err(e) => {
-                tracing::error!("failed to begin read: {}", e);
-                return vec![];
-            }
-        };
-        let table = match read_txn.open_table(DDNS_TABLE) {
-            Ok(table) => table,
-            Err(e) => {
-                tracing::error!("failed to open table: {}", e);
-                return vec![];
-            }
-        };
+pub struct PersistentOffchainDb<Storage> {
+    db: sc_offchain::OffchainDb<Storage>,
+}
 
-        keys.into_iter()
-            .filter_map(|(tp, k)| {
-                let res = table.get(&*k).ok()??;
+pub fn from_backend<Block: sp_api::BlockT, Backend: BackendT<Block>>(
+    backend: &Backend,
+) -> Option<PersistentOffchainDb<<Backend as BackendT<Block>>::OffchainStorage>> {
+    backend
+        .offchain_storage()
+        .map(|storage| PersistentOffchainDb {
+            db: sc_offchain::OffchainDb::new(storage),
+        })
+}
 
-                Some((tp, res.value().to_vec()))
-            })
-            .collect()
+impl<Storage: OffchainStorage> PersistentOffchainDb<Storage> {
+    pub fn set(&mut self, k: &[u8], v: &[u8]) {
+        self.db
+            .local_storage_set(sp_api::offchain::StorageKind::PERSISTENT, k, v);
     }
 
-    pub fn set_with_signature<
-        T: Config,
-        Checker: FnOnce(pns_types::DomainHash, &T::AccountId) -> bool,
-    >(
-        who: T::AccountId,
-        code: T::Signature,
-        id: DomainHash,
-        tp: RecordType,
-        content: Vec<u8>,
-        check_node_useable: Checker,
-    ) -> bool {
-        debug!(
-            "{who:?} will set with signature: {code:?} id: {id:?} tp: {tp:?} content: {content:?}"
-        );
-        // TODO:
+    fn get_raw(&mut self, k: &[u8]) -> Option<Vec<u8>> {
+        self.db
+            .local_storage_get(sp_api::offchain::StorageKind::PERSISTENT, k)
+    }
 
-        if check_node_useable(id, &who) {
-            let data = (id, tp, &content).encode();
-            use sp_runtime::traits::Verify;
-            if code.verify(&data[..], &who) {
-                let db = Database::create(FILE).expect("create database failed.");
-                let Ok(write_txn) = db.begin_write() else {
-                    return false;
-                };
-
-                {
-                    let mut table = match write_txn.open_table(DDNS_TABLE) {
-                        Ok(table) => table,
-                        Err(e) => {
-                            tracing::error!("failed to open table: {:?}", e);
-                            return false;
-                        }
-                    };
-                    let k = Self::offchain_key_with_type::<T>(id, tp);
-
-                    if let Err(e) = table.insert(&*k, &*content) {
-                        tracing::error!("{e:?}");
-                        return false;
-                    };
-                }
-                if let Err(e) = write_txn.commit() {
-                    tracing::error!("{e:?}");
-                    return false;
-                }
-
-                return true;
-            }
-        }
-        false
+    pub fn get<T: Config>(&mut self, id: DomainHash) -> Vec<(RecordType, Vec<u8>)> {
+        let keys = DataOperations::keys::<T>(id);
+        keys.into_iter()
+            .filter_map(|(tp, k)| self.get_raw(&k).map(|v| (tp, v)))
+            .collect()
     }
 }

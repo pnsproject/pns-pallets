@@ -30,7 +30,11 @@ use trust_dns_server::{
 
 use crate::ServerDeps;
 
-pub struct BlockChainAuthority<Client, Backend, Block, Config> {
+pub struct BlockChainAuthority<Client, Backend, Block, Config>
+where
+    Block: BlockT,
+    Backend: BackendT<Block>,
+{
     pub origin: LowerName,
     pub root: LowerName,
     pub zone_type: ZoneType,

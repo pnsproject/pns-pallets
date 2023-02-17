@@ -196,6 +196,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::set_account())]
         pub fn set_account(
             origin: OriginFor<T>,
@@ -215,6 +216,7 @@ pub mod pallet {
 
             Ok(())
         }
+        #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::set_record(content.0.len() as u32))]
         pub fn set_record(
             origin: OriginFor<T>,
@@ -239,6 +241,7 @@ pub mod pallet {
 
             Ok(())
         }
+        #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::set_text(content.0.len() as u32))]
         pub fn set_text(
             origin: OriginFor<T>,

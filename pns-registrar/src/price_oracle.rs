@@ -133,6 +133,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::set_exchange_rate())]
         pub fn set_exchange_rate(
             origin: OriginFor<T>,
@@ -147,6 +148,7 @@ pub mod pallet {
             Ok(())
         }
         /// Internal root method.
+        #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::set_base_price())]
         pub fn set_base_price(origin: OriginFor<T>, prices: [BalanceOf<T>; 11]) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
@@ -158,6 +160,7 @@ pub mod pallet {
             Ok(())
         }
         /// Internal root method.
+        #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::set_rent_price())]
         pub fn set_rent_price(origin: OriginFor<T>, prices: [BalanceOf<T>; 11]) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
@@ -169,6 +172,7 @@ pub mod pallet {
             Ok(())
         }
         /// Internal root method.
+        #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::set_deposit_price())]
         pub fn set_deposit_price(
             origin: OriginFor<T>,
