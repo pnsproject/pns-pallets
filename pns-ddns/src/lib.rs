@@ -139,6 +139,7 @@ where
             .route("/info/:name", get(Self::get_info_from_name))
             .route("/set_record/:data", post(Self::set_record))
             .route("/all", get(Self::all))
+            .route("/ddns/state", get(Self::ddns_state))
             .with_state(self);
 
         axum::Server::bind(&socket)
@@ -353,6 +354,13 @@ where
 
         Json(res)
     }
+
+    async fn ddns_state(State(state): State<Self>) -> impl IntoResponse {
+        let peers = state.manager.peers;
+        let lock = peers.lock().expect("failed to lock peers");
+        let res = lock.iter().map(|id| id.to_base58()).collect::<Vec<_>>();
+        Json(res)
+    }
 }
 
 pub fn name_hash_str(name: &str) -> Option<DomainHash> {
@@ -488,6 +496,7 @@ pub async fn init_ddns<TBl>(
                             let mut lock =
                                 manager.peers.lock().expect("ddns manager lock poisoned");
                             lock.extend(list);
+                            lock.insert(peer);
                         }
                         Err(e) => {
                             error!("{e}");
