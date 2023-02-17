@@ -147,7 +147,7 @@ where
             .unwrap();
     }
 
-    pub async fn init_dns_server(self) {
+    pub async fn init_dns_server(self, port: u16) {
         let zone_name = Name::from_str("dot").unwrap();
         let authority = BlockChainAuthority {
             origin: LowerName::from(&zone_name),
@@ -164,7 +164,7 @@ where
 
         let mut server = ServerFuture::new(catalog);
 
-        let udp_socket = UdpSocket::bind(("127.0.0.1", 25353))
+        let udp_socket = UdpSocket::bind(("127.0.0.1", port))
             .await
             .expect("bind udp socket failed.");
         server.register_socket(udp_socket);
