@@ -425,6 +425,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Sharing your account permissions with others is a discreet operation,
         /// and when methods such as `reclaim` are called, the deposit is returned to the caller.
+        #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::approval_for_all(*approved))]
         pub fn approval_for_all(
             origin: OriginFor<T>,
@@ -438,6 +439,7 @@ pub mod pallet {
             Ok(())
         }
         /// Set the resolver address.
+        #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::set_resolver())]
         pub fn set_resolver(
             origin: OriginFor<T>,
@@ -458,6 +460,7 @@ pub mod pallet {
         /// when the domain is registered by another user.
         ///
         /// Ensure: The number of subdomains for this domain must be zero.
+        #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::burn())]
         pub fn burn(origin: OriginFor<T>, node: DomainHash) -> DispatchResult {
             let caller = ensure_signed(origin)?;
@@ -466,7 +469,7 @@ pub mod pallet {
 
             Ok(())
         }
-
+        #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::set_official())]
         #[frame_support::transactional]
         pub fn set_official(origin: OriginFor<T>, official: T::AccountId) -> DispatchResult {
@@ -491,7 +494,7 @@ pub mod pallet {
 
             Ok(())
         }
-
+        #[pallet::call_index(4)]
         #[pallet::weight(T::WeightInfo::approve(*approved))]
         pub fn approve(
             origin: OriginFor<T>,

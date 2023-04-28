@@ -50,11 +50,60 @@ impl From<codec_type::RecordType> for RecordType {
     }
 }
 
+#[cfg(feature = "std")]
+impl Into<codec_type::RecordType> for RecordType {
+    fn into(self) -> codec_type::RecordType {
+        match self {
+            RecordType::A => codec_type::RecordType::A,
+            RecordType::AAAA => codec_type::RecordType::AAAA,
+            RecordType::ANAME => codec_type::RecordType::ANAME,
+            RecordType::ANY => codec_type::RecordType::ANY,
+            RecordType::AXFR => codec_type::RecordType::AXFR,
+            RecordType::CAA => codec_type::RecordType::CAA,
+            RecordType::CDS => codec_type::RecordType::CDS,
+            RecordType::CDNSKEY => codec_type::RecordType::CDNSKEY,
+            RecordType::CNAME => codec_type::RecordType::CNAME,
+            RecordType::CSYNC => codec_type::RecordType::CSYNC,
+            RecordType::DNSKEY => codec_type::RecordType::DNSKEY,
+            RecordType::DS => codec_type::RecordType::DS,
+            RecordType::HINFO => codec_type::RecordType::HINFO,
+            RecordType::HTTPS => codec_type::RecordType::HTTPS,
+            RecordType::IXFR => codec_type::RecordType::IXFR,
+            RecordType::KEY => codec_type::RecordType::KEY,
+            RecordType::MX => codec_type::RecordType::MX,
+            RecordType::NAPTR => codec_type::RecordType::NAPTR,
+            RecordType::NS => codec_type::RecordType::NS,
+            RecordType::NSEC => codec_type::RecordType::NSEC,
+            RecordType::NSEC3 => codec_type::RecordType::NSEC3,
+            RecordType::NSEC3PARAM => codec_type::RecordType::NSEC3PARAM,
+            RecordType::NULL => codec_type::RecordType::NULL,
+            RecordType::OPENPGPKEY => codec_type::RecordType::OPENPGPKEY,
+            RecordType::OPT => codec_type::RecordType::OPT,
+            RecordType::PTR => codec_type::RecordType::PTR,
+            RecordType::RRSIG => codec_type::RecordType::RRSIG,
+            RecordType::SIG => codec_type::RecordType::SIG,
+            RecordType::SOA => codec_type::RecordType::SOA,
+            RecordType::SRV => codec_type::RecordType::SRV,
+            RecordType::SSHFP => codec_type::RecordType::SSHFP,
+            RecordType::SVCB => codec_type::RecordType::SVCB,
+            RecordType::TLSA => codec_type::RecordType::TLSA,
+            RecordType::TSIG => codec_type::RecordType::TSIG,
+            RecordType::TXT => codec_type::RecordType::TXT,
+            RecordType::Unknown(unknow) => codec_type::RecordType::Unknown(unknow),
+            RecordType::ZERO => codec_type::RecordType::ZERO,
+            _ => panic!("unsupported record type"),
+        }
+    }
+}
+
 pub mod codec_type {
+    use codec::MaxEncodedLen;
+    use scale_info::TypeInfo;
+
     use super::*;
 
     #[cfg_attr(feature = "std", derive(Deserialize, Serialize))]
-    #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Encode, Decode)]
+    #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
     #[allow(dead_code)]
     #[non_exhaustive]
     pub enum RecordType {
@@ -146,5 +195,48 @@ pub mod codec_type {
 
         /// This corresponds to a record type of 0, unspecified
         ZERO,
+    }
+
+    impl RecordType {
+        pub fn all() -> [Self; 36] {
+            [
+                RecordType::A,
+                RecordType::AAAA,
+                RecordType::ANAME,
+                RecordType::ANY,
+                RecordType::AXFR,
+                RecordType::CAA,
+                RecordType::CDS,
+                RecordType::CDNSKEY,
+                RecordType::CNAME,
+                RecordType::CSYNC,
+                RecordType::DNSKEY,
+                RecordType::DS,
+                RecordType::HINFO,
+                RecordType::HTTPS,
+                RecordType::IXFR,
+                RecordType::KEY,
+                RecordType::MX,
+                RecordType::NAPTR,
+                RecordType::NS,
+                RecordType::NSEC,
+                RecordType::NSEC3,
+                RecordType::NSEC3PARAM,
+                RecordType::NULL,
+                RecordType::OPENPGPKEY,
+                RecordType::OPT,
+                RecordType::PTR,
+                RecordType::RRSIG,
+                RecordType::SIG,
+                RecordType::SOA,
+                RecordType::SRV,
+                RecordType::SSHFP,
+                RecordType::SVCB,
+                RecordType::TLSA,
+                RecordType::TSIG,
+                RecordType::TXT,
+                RecordType::ZERO,
+            ]
+        }
     }
 }

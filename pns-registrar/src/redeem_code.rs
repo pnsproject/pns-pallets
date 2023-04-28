@@ -140,6 +140,7 @@ pub mod pallet {
         /// This is a Root method which is used to create the nouce needed to redeem the code.
         ///
         /// Ensure: start < end
+        #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::mint_redeem(end.checked_sub(*start).unwrap_or_default()))]
         pub fn mint_redeem(origin: OriginFor<T>, start: u32, end: u32) -> DispatchResult {
             let _who = T::ManagerOrigin::ensure_origin(origin)?;
@@ -165,6 +166,7 @@ pub mod pallet {
         /// and then calls the interface.
         ///
         /// Ensure: The length of name needs to be greater than 3.
+        #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::name_redeem(name.len() as u32))]
         #[frame_support::transactional]
         pub fn name_redeem(
@@ -219,6 +221,7 @@ pub mod pallet {
         /// or occupied when it is called.
         ///
         /// Ensure: The length of name needs to be greater than 10.
+        #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::name_redeem_any(name.len() as u32))]
         #[frame_support::transactional]
         pub fn name_redeem_any(

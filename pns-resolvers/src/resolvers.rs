@@ -14,6 +14,7 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use codec::EncodeLike;
     use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use pns_types::ddns::codec_type::RecordType;
@@ -26,6 +27,8 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
+        const OFFCHAIN_PREFIX: &'static [u8];
+
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         type WeightInfo: WeightInfo;
@@ -33,6 +36,23 @@ pub mod pallet {
         type AccountIndex: Parameter + Member + AtLeast32BitUnsigned + Default + Copy;
 
         type RegistryChecker: RegistryChecker<AccountId = Self::AccountId>;
+
+        type Public: TypeInfo
+            + Decode
+            + Encode
+            + EncodeLike
+            + MaybeSerializeDeserialize
+            + core::fmt::Debug
+            + sp_runtime::traits::IdentifyAccount<AccountId = Self::AccountId>;
+
+        type Signature: sp_runtime::traits::Verify<Signer = Self::Public>
+            + codec::Codec
+            + EncodeLike
+            + MaybeSerializeDeserialize
+            + Clone
+            + Eq
+            + core::fmt::Debug
+            + TypeInfo;
     }
 
     #[pallet::pallet]
@@ -176,6 +196,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::set_account())]
         pub fn set_account(
             origin: OriginFor<T>,
@@ -195,10 +216,12 @@ pub mod pallet {
 
             Ok(())
         }
-        #[pallet::weight(T::WeightInfo::set_a_record(content.0.len() as u32))]
-        pub fn set_a_record(
+        #[pallet::call_index(1)]
+        #[pallet::weight(T::WeightInfo::set_record(content.0.len() as u32))]
+        pub fn set_record(
             origin: OriginFor<T>,
             node: pns_types::DomainHash,
+            record_type: RecordType,
             content: Content,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
@@ -208,18 +231,17 @@ pub mod pallet {
                 Error::<T>::InvalidPermission
             );
 
-            let kind = RecordType::A;
-
-            Records::<T>::insert(node, &kind, &content);
+            Records::<T>::insert(node, &record_type, &content);
 
             Self::deposit_event(Event::<T>::RecordsChanged {
                 node,
-                kind,
+                kind: record_type,
                 content,
             });
 
             Ok(())
         }
+        #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::set_text(content.0.len() as u32))]
         pub fn set_text(
             origin: OriginFor<T>,
@@ -247,14 +269,14 @@ pub mod pallet {
     }
 }
 
-use frame_support::{dispatch::Weight, IterableStorageDoubleMap};
+use frame_support::dispatch::Weight;
 use pns_types::{ddns::codec_type::RecordType, DomainHash};
 use sp_std::vec::Vec;
 
 pub trait WeightInfo {
     fn set_text(content_len: u32) -> Weight;
 
-    fn set_a_record(content_len: u32) -> Weight;
+    fn set_record(content_len: u32) -> Weight;
 
     fn set_account() -> Weight;
 }
@@ -294,7 +316,7 @@ impl WeightInfo for () {
         Weight::zero()
     }
 
-    fn set_a_record(_content_len: u32) -> Weight {
+    fn set_record(_content_len: u32) -> Weight {
         Weight::zero()
     }
 
@@ -307,6 +329,6 @@ impl<C: Config> Pallet<C> {
     pub fn lookup(id: DomainHash) -> Vec<(RecordType, Vec<u8>)> {
         Records::<C>::iter_prefix(id)
             .map(|(k2, v)| (k2, v.0))
-            .collect()
+            .collect::<Vec<(RecordType, Vec<u8>)>>()
     }
 }

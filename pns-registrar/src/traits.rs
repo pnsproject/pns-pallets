@@ -105,7 +105,7 @@ pub struct Label {
 }
 pub const LABEL_MAX_LEN: usize = 63;
 pub const LABEL_MIN_LEN: usize = 3;
-pub const MIN_REGISTRABLE_LEN: usize = 10;
+pub const MIN_REGISTRABLE_LEN: usize = 3;
 
 impl Label {
     pub fn new(data: &[u8]) -> Option<Self> {
