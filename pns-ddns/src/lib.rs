@@ -27,7 +27,7 @@ use pns_types::DomainHash;
 use sc_client_api::backend::Backend as BackendT;
 use sc_network::NetworkRequest;
 use sc_service::SpawnTaskHandle;
-use sp_api::{BlockId, BlockT, ProvideRuntimeApi};
+use sp_api::{BlockT, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_core::Pair;
@@ -206,7 +206,7 @@ where
         let checker = |id: DomainHash, who: &Config::AccountId| -> bool {
             let at = client.info().best_hash;
             let api = client.runtime_api();
-            match api.check_node_useable(&BlockId::hash(at), id, who) {
+            match api.check_node_useable(at, id, who) {
                 Ok(res) => res,
                 Err(e) => {
                     tracing::error!("get info error: {e:?}");
@@ -255,7 +255,7 @@ where
         let client = state.client;
         let at = client.info().best_hash;
         let api = client.runtime_api();
-        let res = match api.get_info(&BlockId::hash(at), id) {
+        let res = match api.get_info(at, id) {
             Ok(res) => res,
             Err(e) => {
                 tracing::error!("get info error: {e:?}");
@@ -278,7 +278,7 @@ where
         let api = self.client.runtime_api();
         let id = name_hash(name).ok_or(LookupError::ResponseCode(ResponseCode::NoError))?;
         info!("namehash: {id:?}");
-        match api.lookup(&BlockId::hash(at), id) {
+        match api.lookup(at, id) {
             Ok(mut onchain) => {
                 // offchain:
                 let mut guard = self.offchain_db.lock().expect("db lock error");
@@ -324,7 +324,7 @@ where
                 let basenode = <Config as pns_registrar::registrar::Config>::BaseNode::get();
                 label.encode_with_node(&basenode)
             })
-            .and_then(|id| match api.get_info(&BlockId::hash(at), id) {
+            .and_then(|id| match api.get_info(at, id) {
                 Ok(res) => {
                     if res.is_none() {
                         tracing::info!("query id: {id:?} not found info.");
@@ -344,7 +344,7 @@ where
         let client = state.client;
         let at = client.info().best_hash;
         let api = client.runtime_api();
-        let res = match api.all(&BlockId::hash(at)) {
+        let res = match api.all(at) {
             Ok(res) => res,
             Err(e) => {
                 tracing::error!("get info error: {e:?}");

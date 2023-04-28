@@ -6,7 +6,10 @@ use std::{
 
 use futures::{channel::mpsc, StreamExt};
 use libp2p::PeerId;
-use sc_network_common::request_responses::{IncomingRequest, OutgoingResponse, ProtocolConfig};
+use sc_network::{
+    request_responses::{IncomingRequest, OutgoingResponse, ProtocolConfig},
+    ProtocolName,
+};
 use serde::{Deserialize, Serialize};
 use sp_api::offchain::OffchainStorage;
 use tracing::error;
@@ -35,7 +38,7 @@ where
         let (tx, request_receiver) = mpsc::channel(MAX_REQUEST_QUEUE);
 
         let config = ProtocolConfig {
-            name: sc_network_common::protocol::ProtocolName::from(PROTOCOL_NAME),
+            name: ProtocolName::from(PROTOCOL_NAME),
             fallback_names: vec![],
             max_request_size: MAX_PACKET_SIZE,
             max_response_size: MAX_PACKET_SIZE,
