@@ -263,7 +263,7 @@ where
     let has_bootnodes = !network_params.network_config.boot_nodes.is_empty();
     let network_mut = sc_network::NetworkWorker::new(network_params)?;
     let network = network_mut.service().clone();
-
+    #[allow(dead_code)]
     struct TransactionPoolAdapterProxy<C, P> {
         pool: Arc<P>,
         client: Arc<C>,
